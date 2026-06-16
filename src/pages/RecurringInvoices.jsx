@@ -1,22 +1,29 @@
-import { useState } from "react";
+// ============================================================
+// FILE: VJC-Invoice-frontend/src/pages/RecurringInvoices.jsx
+// ============================================================
+
+import { useState, useEffect, useCallback } from "react";
 import {
   Box, Typography, Grid, Card, CardContent, Button, TextField,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Paper, Dialog, DialogTitle, DialogContent, DialogActions,
   MenuItem, Chip, Divider, IconButton, Alert, Tooltip, Switch,
-  FormControlLabel,
+  FormControlLabel, CircularProgress, Snackbar,
 } from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
-import CloseIcon from "@mui/icons-material/Close";
-import DeleteIcon from "@mui/icons-material/Delete";
-import VisibilityIcon from "@mui/icons-material/Visibility";
-import EditIcon from "@mui/icons-material/Edit";
-import StopIcon from "@mui/icons-material/Stop";
-import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import AddIcon         from "@mui/icons-material/Add";
+import CloseIcon       from "@mui/icons-material/Close";
+import DeleteIcon      from "@mui/icons-material/Delete";
+import VisibilityIcon  from "@mui/icons-material/Visibility";
+import EditIcon        from "@mui/icons-material/Edit";
+import StopIcon        from "@mui/icons-material/Stop";
+import PlayArrowIcon   from "@mui/icons-material/PlayArrow";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
-import RepeatIcon from "@mui/icons-material/Repeat";
+import RepeatIcon      from "@mui/icons-material/Repeat";
+import RefreshIcon     from "@mui/icons-material/Refresh";
 
-// ─── Helpers ────────────────────────────────────────────────
+// ─── Config ──────────────────────────────────────────────────
+const API = "http://localhost:5000/api";
+
 const formatPrice = (value) =>
   Number(value || 0).toLocaleString("en-IN", {
     style: "currency", currency: "INR", maximumFractionDigits: 0,
@@ -30,28 +37,47 @@ const formatDate = (dateStr) => {
   return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 };
 
-// Calculate next invoice date based on frequency
 const calcNextDate = (lastDate, frequency) => {
   if (!lastDate) return null;
   const d = new Date(lastDate);
   switch (frequency) {
-    case "Weekly":     d.setDate(d.getDate() + 7);    break;
-    case "Monthly":    d.setMonth(d.getMonth() + 1);  break;
-    case "Quarterly":  d.setMonth(d.getMonth() + 3);  break;
-    case "HalfYearly": d.setMonth(d.getMonth() + 6);  break;
+    case "Weekly":     d.setDate(d.getDate() + 7);         break;
+    case "Monthly":    d.setMonth(d.getMonth() + 1);       break;
+    case "Quarterly":  d.setMonth(d.getMonth() + 3);       break;
+    case "HalfYearly": d.setMonth(d.getMonth() + 6);       break;
     case "Yearly":     d.setFullYear(d.getFullYear() + 1); break;
     default: break;
   }
   return d.toISOString().split("T")[0];
 };
 
-// ─── Config ──────────────────────────────────────────────────
+// ── Map DB row (snake_case) → frontend (camelCase) ────────────
+const mapRow = (r) => ({
+  id:                r.profile_no,
+  dbId:              r.id,
+  profileName:       r.profile_name,
+  customerId:        r.customer_id,
+  customerName:      r.customer_name,
+  frequency:         r.frequency,
+  paymentTerms:      r.payment_terms,
+  startDate:         r.start_date?.slice(0, 10) || "",
+  endDate:           r.end_date?.slice(0, 10)   || "",
+  noEndDate:         r.no_end_date,
+  lastInvoiceDate:   r.last_invoice_date?.slice(0, 10) || "",
+  nextInvoiceDate:   r.next_invoice_date?.slice(0, 10) || "",
+  status:            r.status,
+  notes:             r.notes || "",
+  lineItems:         Array.isArray(r.line_items)         ? r.line_items         : [],
+  generatedInvoices: Array.isArray(r.generated_invoices) ? r.generated_invoices : [],
+});
+
+// ─── Constants ───────────────────────────────────────────────
 const FREQUENCIES = [
-  { key: "Weekly",     label: "Weekly" },
-  { key: "Monthly",   label: "Monthly" },
-  { key: "Quarterly", label: "Quarterly" },
-  { key: "HalfYearly",label: "Half Yearly" },
-  { key: "Yearly",    label: "Yearly" },
+  { key: "Weekly",      label: "Weekly"      },
+  { key: "Monthly",     label: "Monthly"     },
+  { key: "Quarterly",   label: "Quarterly"   },
+  { key: "HalfYearly",  label: "Half Yearly" },
+  { key: "Yearly",      label: "Yearly"      },
 ];
 
 const PAYMENT_TERMS = [
@@ -64,29 +90,14 @@ const STATUS_COLOR = {
   Expired: "warning",
 };
 
-// ─── Seed Data ───────────────────────────────────────────────
-const CUSTOMERS = [
-  { id: "CUS001", name: "Rahul Kumar",  company: "ABC Pvt Ltd",   email: "rahul@gmail.com" },
-  { id: "CUS002", name: "Priya Reddy",  company: "XYZ Solutions", email: "priya@gmail.com" },
-  { id: "CUS003", name: "Vikram Singh", company: "Tech Corp",     email: "vikram@gmail.com" },
-];
-
-const ITEMS_LIST = [
-  { id: 1, serviceName: "Canada Study Visa",    price: 150000, gst: 18 },
-  { id: 2, serviceName: "Australia PR",          price: 250000, gst: 18 },
-  { id: 3, serviceName: "UK Tourist Visa",       price: 65000,  gst: 18 },
-  { id: 4, serviceName: "Monthly Consultation",  price: 10000,  gst: 18 },
-  { id: 5, serviceName: "Document Processing",   price: 25000,  gst: 18 },
-];
-
 const emptyLineItem = () => ({
-  _key: Date.now() + Math.random(),
-  itemId: "",
+  _key:        Date.now() + Math.random(),
+  itemId:      "",
   description: "",
-  qty: 1,
-  rate: 0,
-  gst: 18,
-  discount: 0,
+  qty:         1,
+  rate:        0,
+  gst:         18,
+  discount:    0,
 });
 
 // ─── Line item calculation ────────────────────────────────────
@@ -100,7 +111,7 @@ const lineAmount = (li) => {
 
 const totals = (lineItems) => {
   let subTotal = 0, totalGST = 0, grandTotal = 0;
-  lineItems.forEach((li) => {
+  (lineItems || []).forEach((li) => {
     const a = lineAmount(li);
     subTotal   += a.taxable;
     totalGST   += a.gstAmt;
@@ -109,7 +120,7 @@ const totals = (lineItems) => {
   return { subTotal, totalGST, grandTotal };
 };
 
-// ─── View Generated Invoices Dialog ──────────────────────────
+// ─── Generated Invoices Dialog ────────────────────────────────
 function GeneratedInvoicesDialog({ open, onClose, profile }) {
   if (!profile) return null;
   return (
@@ -158,7 +169,7 @@ function GeneratedInvoicesDialog({ open, onClose, profile }) {
 // ─── View Profile Dialog ──────────────────────────────────────
 function ViewProfileDialog({ open, onClose, profile, onStop, onResume }) {
   if (!profile) return null;
-  const { subTotal, totalGST, grandTotal } = totals(profile.lineItems || []);
+  const { subTotal, totalGST, grandTotal } = totals(profile.lineItems);
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
@@ -167,21 +178,16 @@ function ViewProfileDialog({ open, onClose, profile, onStop, onResume }) {
         <IconButton size="small" onClick={onClose} sx={{ color: "white" }}><CloseIcon /></IconButton>
       </DialogTitle>
       <DialogContent sx={{ mt: 2 }}>
-        {/* Status banner */}
         <Alert
           severity={profile.status === "Active" ? "success" : profile.status === "Stopped" ? "error" : "warning"}
           sx={{ mb: 2 }}
           action={
             profile.status === "Active" ? (
               <Button size="small" color="error" startIcon={<StopIcon />}
-                onClick={() => { onStop(profile); onClose(); }}>
-                Stop
-              </Button>
+                onClick={() => { onStop(profile); onClose(); }}>Stop</Button>
             ) : profile.status === "Stopped" ? (
               <Button size="small" color="success" startIcon={<PlayArrowIcon />}
-                onClick={() => { onResume(profile); onClose(); }}>
-                Resume
-              </Button>
+                onClick={() => { onResume(profile); onClose(); }}>Resume</Button>
             ) : null
           }
         >
@@ -190,45 +196,28 @@ function ViewProfileDialog({ open, onClose, profile, onStop, onResume }) {
         </Alert>
 
         <Grid container spacing={2}>
-          <Grid item xs={6} md={3}>
-            <Typography color="text.secondary" variant="body2">Profile Name</Typography>
-            <Typography fontWeight="bold">{profile.profileName}</Typography>
-          </Grid>
-          <Grid item xs={6} md={3}>
-            <Typography color="text.secondary" variant="body2">Customer</Typography>
-            <Typography fontWeight="bold">{profile.customerName}</Typography>
-          </Grid>
-          <Grid item xs={6} md={3}>
-            <Typography color="text.secondary" variant="body2">Frequency</Typography>
-            <Typography>{profile.frequency}</Typography>
-          </Grid>
-          <Grid item xs={6} md={3}>
-            <Typography color="text.secondary" variant="body2">Payment Terms</Typography>
-            <Typography>{profile.paymentTerms}</Typography>
-          </Grid>
-          <Grid item xs={6} md={3}>
-            <Typography color="text.secondary" variant="body2">Start Date</Typography>
-            <Typography>{formatDate(profile.startDate)}</Typography>
-          </Grid>
-          <Grid item xs={6} md={3}>
-            <Typography color="text.secondary" variant="body2">End Date</Typography>
-            <Typography>{profile.endDate ? formatDate(profile.endDate) : "No end date"}</Typography>
-          </Grid>
-          <Grid item xs={6} md={3}>
-            <Typography color="text.secondary" variant="body2">Last Invoice Date</Typography>
-            <Typography>{formatDate(profile.lastInvoiceDate)}</Typography>
-          </Grid>
-          <Grid item xs={6} md={3}>
-            <Typography color="text.secondary" variant="body2">Next Invoice Date</Typography>
-            <Typography sx={{ color: profile.status === "Active" ? "#2e7d32" : "inherit", fontWeight: "bold" }}>
-              {profile.status === "Active" ? formatDate(profile.nextInvoiceDate) : "--"}
-            </Typography>
-          </Grid>
+          {[
+            ["Profile Name",      profile.profileName],
+            ["Customer",          profile.customerName],
+            ["Frequency",         profile.frequency],
+            ["Payment Terms",     profile.paymentTerms],
+            ["Start Date",        formatDate(profile.startDate)],
+            ["End Date",          profile.endDate ? formatDate(profile.endDate) : "No end date"],
+            ["Last Invoice Date", formatDate(profile.lastInvoiceDate)],
+            ["Next Invoice Date", profile.status === "Active" ? formatDate(profile.nextInvoiceDate) : "--"],
+          ].map(([label, val]) => (
+            <Grid item xs={6} md={3} key={label}>
+              <Typography color="text.secondary" variant="body2">{label}</Typography>
+              <Typography fontWeight={["Profile Name","Customer"].includes(label) ? "bold" : "normal"}
+                sx={{ color: label === "Next Invoice Date" && profile.status === "Active" ? "#2e7d32" : "inherit" }}>
+                {val}
+              </Typography>
+            </Grid>
+          ))}
         </Grid>
 
         <Divider sx={{ my: 2 }} />
 
-        {/* Line items */}
         <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1 }}>Services / Items</Typography>
         <TableContainer component={Paper} variant="outlined">
           <Table size="small">
@@ -240,10 +229,10 @@ function ViewProfileDialog({ open, onClose, profile, onStop, onResume }) {
               </TableRow>
             </TableHead>
             <TableBody>
-              {(profile.lineItems || []).map((li) => {
+              {profile.lineItems.map((li, i) => {
                 const amt = lineAmount(li);
                 return (
-                  <TableRow key={li._key}>
+                  <TableRow key={i}>
                     <TableCell>{li.description}</TableCell>
                     <TableCell>{li.qty}</TableCell>
                     <TableCell>{formatPrice(li.rate)}</TableCell>
@@ -257,7 +246,6 @@ function ViewProfileDialog({ open, onClose, profile, onStop, onResume }) {
           </Table>
         </TableContainer>
 
-        {/* Totals */}
         <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
           <Box sx={{ width: 300, bgcolor: "#f9f9f9", p: 2, borderRadius: 1 }}>
             <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
@@ -288,27 +276,29 @@ function ViewProfileDialog({ open, onClose, profile, onStop, onResume }) {
   );
 }
 
-// ─── Create / Edit Dialog ─────────────────────────────────────
-function ProfileFormDialog({ open, onClose, onSave, editData }) {
+// ─── Profile Form Dialog ──────────────────────────────────────
+function ProfileFormDialog({ open, onClose, onSave, editData, customers, items }) {
   const isEdit = !!editData;
 
-  const [form, setForm] = useState(editData || {
-    profileName: "",
-    customerId: "",
+  const defaultForm = {
+    profileName:  "",
+    customerId:   "",
     customerName: "",
-    frequency: "Monthly",
+    frequency:    "Monthly",
     paymentTerms: "Net 30",
-    startDate: today(),
-    endDate: "",
-    noEndDate: true,
-    lineItems: [emptyLineItem()],
-    notes: "",
-  });
+    startDate:    today(),
+    endDate:      "",
+    noEndDate:    true,
+    lineItems:    [emptyLineItem()],
+    notes:        "",
+  };
 
-  // Sync when editData changes
-  useState(() => {
-    if (editData) setForm(editData);
-  }, [editData]);
+  const [form, setForm]       = useState(defaultForm);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (open) setForm(editData || defaultForm);
+  }, [open, editData]);
 
   const updateLine = (key, field, value) => {
     setForm((f) => ({
@@ -317,11 +307,11 @@ function ProfileFormDialog({ open, onClose, onSave, editData }) {
         if (li._key !== key) return li;
         const updated = { ...li, [field]: value };
         if (field === "itemId") {
-          const found = ITEMS_LIST.find((i) => i.id === Number(value));
+          const found = items.find((i) => String(i.id) === String(value));
           if (found) {
-            updated.description = found.serviceName;
-            updated.rate        = found.price;
-            updated.gst         = found.gst;
+            updated.description = found.service_name || found.serviceName || found.name || "";
+            updated.rate        = Number(found.price || found.rate || 0);
+            updated.gst         = Number(found.gst_rate || found.gst || 18);
           }
         }
         return updated;
@@ -334,9 +324,11 @@ function ProfileFormDialog({ open, onClose, onSave, editData }) {
 
   const { subTotal, totalGST, grandTotal } = totals(form.lineItems);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.customerId || !form.profileName) return;
-    onSave(form, isEdit);
+    setLoading(true);
+    await onSave(form, isEdit);
+    setLoading(false);
     onClose();
   };
 
@@ -350,94 +342,77 @@ function ProfileFormDialog({ open, onClose, onSave, editData }) {
       <DialogContent sx={{ mt: 1 }}>
         <Grid container spacing={2} sx={{ mt: 0.5 }}>
 
-          {/* Profile Name */}
           <Grid item xs={12} md={6}>
-            <TextField
-              fullWidth label="Profile Name *"
+            <TextField fullWidth label="Profile Name *"
               value={form.profileName}
               onChange={(e) => setForm({ ...form, profileName: e.target.value })}
-              placeholder="e.g. Monthly Consultation — Rahul"
-            />
+              placeholder="e.g. Monthly Consultation — Rahul" />
           </Grid>
 
-          {/* Customer */}
           <Grid item xs={12} md={6}>
-            <TextField
-              select fullWidth label="Customer *"
+            <TextField select fullWidth label="Customer *"
               value={form.customerId}
               onChange={(e) => {
-                const c = CUSTOMERS.find(x => x.id === e.target.value);
-                setForm({ ...form, customerId: e.target.value, customerName: c?.name || "" });
-              }}
-            >
-              {CUSTOMERS.map((c) => (
-                <MenuItem key={c.id} value={c.id}>{c.name} — {c.company}</MenuItem>
-              ))}
+                const c = customers.find(x => String(x.id) === String(e.target.value));
+                setForm({ ...form, customerId: e.target.value, customerName: c?.customer_name || c?.name || "" });
+              }}>
+              {customers.length === 0
+                ? <MenuItem value="">No customers found</MenuItem>
+                : customers.map((c) => (
+                  <MenuItem key={c.id} value={String(c.id)}>
+                    {c.customer_name || c.name} — {c.email || ""}
+                  </MenuItem>
+                ))
+              }
             </TextField>
           </Grid>
 
-          {/* Frequency */}
           <Grid item xs={12} md={4}>
-            <TextField
-              select fullWidth label="Frequency *"
+            <TextField select fullWidth label="Frequency *"
               value={form.frequency}
-              onChange={(e) => setForm({ ...form, frequency: e.target.value })}
-            >
+              onChange={(e) => setForm({ ...form, frequency: e.target.value })}>
               {FREQUENCIES.map((f) => (
                 <MenuItem key={f.key} value={f.key}>{f.label}</MenuItem>
               ))}
             </TextField>
           </Grid>
 
-          {/* Payment Terms */}
           <Grid item xs={12} md={4}>
-            <TextField
-              select fullWidth label="Payment Terms"
+            <TextField select fullWidth label="Payment Terms"
               value={form.paymentTerms}
-              onChange={(e) => setForm({ ...form, paymentTerms: e.target.value })}
-            >
+              onChange={(e) => setForm({ ...form, paymentTerms: e.target.value })}>
               {PAYMENT_TERMS.map((t) => (
                 <MenuItem key={t} value={t}>{t}</MenuItem>
               ))}
             </TextField>
           </Grid>
 
-          {/* Start Date */}
           <Grid item xs={12} md={4}>
-            <TextField
-              fullWidth label="Start Date *" type="date"
+            <TextField fullWidth label="Start Date *" type="date"
               value={form.startDate}
               onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-              InputLabelProps={{ shrink: true }}
-            />
+              InputLabelProps={{ shrink: true }} />
           </Grid>
 
-          {/* End Date */}
           <Grid item xs={12} md={6}>
             <FormControlLabel
               control={
-                <Switch
-                  checked={form.noEndDate}
-                  onChange={(e) => setForm({ ...form, noEndDate: e.target.checked, endDate: "" })}
-                />
+                <Switch checked={form.noEndDate}
+                  onChange={(e) => setForm({ ...form, noEndDate: e.target.checked, endDate: "" })} />
               }
-              label="No End Date (runs indefinitely)"
-            />
+              label="No End Date (runs indefinitely)" />
           </Grid>
 
           {!form.noEndDate && (
             <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth label="End Date" type="date"
+              <TextField fullWidth label="End Date" type="date"
                 value={form.endDate}
                 onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-                InputLabelProps={{ shrink: true }}
-              />
+                InputLabelProps={{ shrink: true }} />
             </Grid>
           )}
         </Grid>
 
-        {/* ── Item Table ── */}
         <Typography variant="h6" sx={{ mt: 3, mb: 1 }}>Items / Services</Typography>
         <TableContainer component={Paper} variant="outlined">
           <Table size="small">
@@ -459,13 +434,13 @@ function ProfileFormDialog({ open, onClose, onSave, editData }) {
                 return (
                   <TableRow key={li._key}>
                     <TableCell>
-                      <TextField
-                        select fullWidth size="small" value={li.itemId}
-                        onChange={(e) => updateLine(li._key, "itemId", e.target.value)}
-                      >
+                      <TextField select fullWidth size="small" value={li.itemId}
+                        onChange={(e) => updateLine(li._key, "itemId", e.target.value)}>
                         <MenuItem value="">-- Select --</MenuItem>
-                        {ITEMS_LIST.map((it) => (
-                          <MenuItem key={it.id} value={it.id}>{it.serviceName}</MenuItem>
+                        {items.map((it) => (
+                          <MenuItem key={it.id} value={String(it.id)}>
+                            {it.service_name || it.serviceName || it.name}
+                          </MenuItem>
                         ))}
                       </TextField>
                     </TableCell>
@@ -513,7 +488,6 @@ function ProfileFormDialog({ open, onClose, onSave, editData }) {
           Add New Row
         </Button>
 
-        {/* Totals */}
         <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
           <Box sx={{ width: 320, bgcolor: "#f9f9f9", p: 2, borderRadius: 1 }}>
             <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
@@ -525,30 +499,22 @@ function ProfileFormDialog({ open, onClose, onSave, editData }) {
             <Divider sx={{ my: 1 }} />
             <Box sx={{ display: "flex", justifyContent: "space-between" }}>
               <Typography fontWeight="bold" variant="h6">Total per cycle (₹)</Typography>
-              <Typography fontWeight="bold" variant="h6" color="primary">
-                {formatPrice(grandTotal)}
-              </Typography>
+              <Typography fontWeight="bold" variant="h6" color="primary">{formatPrice(grandTotal)}</Typography>
             </Box>
           </Box>
         </Box>
 
-        {/* Notes */}
-        <TextField
-          fullWidth multiline rows={2} label="Notes" sx={{ mt: 2 }}
+        <TextField fullWidth multiline rows={2} label="Notes" sx={{ mt: 2 }}
           value={form.notes}
           onChange={(e) => setForm({ ...form, notes: e.target.value })}
-          helperText="Internal notes for this recurring profile"
-        />
+          helperText="Internal notes for this recurring profile" />
       </DialogContent>
 
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button
-          variant="contained"
-          onClick={handleSave}
-          disabled={!form.customerId || !form.profileName}
-          startIcon={<RepeatIcon />}
-        >
+        <Button onClick={onClose} disabled={loading}>Cancel</Button>
+        <Button variant="contained" onClick={handleSave}
+          disabled={!form.customerId || !form.profileName || loading}
+          startIcon={loading ? <CircularProgress size={16} /> : <RepeatIcon />}>
           {isEdit ? "Update Profile" : "Create Recurring Profile"}
         </Button>
       </DialogActions>
@@ -558,147 +524,154 @@ function ProfileFormDialog({ open, onClose, onSave, editData }) {
 
 // ─── Main Component ───────────────────────────────────────────
 function RecurringInvoices() {
-  const [profiles, setProfiles] = useState([
-    {
-      id: "REC-000001",
-      profileName: "Recurring Invoice 1",
-      customerId: "CUS001",
-      customerName: "Rahul Kumar",
-      frequency: "Monthly",
-      paymentTerms: "Net 45",
-      startDate: "2025-01-01",
-      endDate: "",
-      noEndDate: true,
-      lastInvoiceDate: "2025-08-14",
-      nextInvoiceDate: "2027-05-05",
-      status: "Active",
-      notes: "",
-      lineItems: [
-        { _key: 1, itemId: 4, description: "Monthly Consultation", qty: 1, rate: 10000, gst: 18, discount: 0 },
-      ],
-      generatedInvoices: [
-        { id: "INV-AUTO-001", date: "2025-01-01", amount: 11800, status: "Paid" },
-        { id: "INV-AUTO-002", date: "2025-02-01", amount: 11800, status: "Paid" },
-        { id: "INV-AUTO-003", date: "2025-08-14", amount: 11800, status: "Sent" },
-      ],
-    },
-    {
-      id: "REC-000002",
-      profileName: "Recurring Invoice 2",
-      customerId: "CUS002",
-      customerName: "Priya Reddy",
-      frequency: "Monthly",
-      paymentTerms: "Net 60",
-      startDate: "2025-01-01",
-      endDate: "",
-      noEndDate: true,
-      lastInvoiceDate: "2025-08-14",
-      nextInvoiceDate: "",
-      status: "Stopped",
-      notes: "Customer requested to pause.",
-      lineItems: [
-        { _key: 2, itemId: 5, description: "Document Processing", qty: 1, rate: 25000, gst: 18, discount: 0 },
-      ],
-      generatedInvoices: [
-        { id: "INV-AUTO-004", date: "2025-01-01", amount: 29500, status: "Paid" },
-        { id: "INV-AUTO-005", date: "2025-08-14", amount: 29500, status: "Paid" },
-      ],
-    },
-    {
-      id: "REC-000003",
-      profileName: "Recurring Invoice 3",
-      customerId: "CUS003",
-      customerName: "Vikram Singh",
-      frequency: "Quarterly",
-      paymentTerms: "Due on Receipt",
-      startDate: "2025-01-01",
-      endDate: "",
-      noEndDate: true,
-      lastInvoiceDate: "2025-08-14",
-      nextInvoiceDate: "2027-05-05",
-      status: "Active",
-      notes: "",
-      lineItems: [
-        { _key: 3, itemId: 3, description: "UK Tourist Visa", qty: 1, rate: 65000, gst: 18, discount: 5 },
-      ],
-      generatedInvoices: [
-        { id: "INV-AUTO-006", date: "2025-01-01", amount: 72923, status: "Paid" },
-        { id: "INV-AUTO-007", date: "2025-08-14", amount: 72923, status: "Draft" },
-      ],
-    },
-  ]);
+  const [profiles,     setProfiles]     = useState([]);
+  const [customers,    setCustomers]    = useState([]);
+  const [items,        setItems]        = useState([]);
+  const [loading,      setLoading]      = useState(true);
+  const [formOpen,     setFormOpen]     = useState(false);
+  const [viewOpen,     setViewOpen]     = useState(false);
+  const [genInvOpen,   setGenInvOpen]   = useState(false);
+  const [selected,     setSelected]     = useState(null);
+  const [editData,     setEditData]     = useState(null);
+  const [search,       setSearch]       = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [snack,        setSnack]        = useState({ open: false, msg: "", severity: "success" });
 
-  // ── UI State ──
-  const [formOpen, setFormOpen]             = useState(false);
-  const [viewOpen, setViewOpen]             = useState(false);
-  const [genInvOpen, setGenInvOpen]         = useState(false);
-  const [selected, setSelected]             = useState(null);
-  const [editData, setEditData]             = useState(null);
-  const [search, setSearch]                 = useState("");
-  const [statusFilter, setStatusFilter]     = useState("All");
+  const showSnack = (msg, severity = "success") =>
+    setSnack({ open: true, msg, severity });
 
-  // ── Next Profile Number ──
-  const nextProfileNo = () => {
-    const nums = profiles.map((p) => parseInt(p.id.replace("REC-", ""), 10));
-    const max  = nums.length ? Math.max(...nums) : 0;
-    return `REC-${String(max + 1).padStart(6, "0")}`;
-  };
+  // ── Fetch Profiles ──
+  const fetchProfiles = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res  = await fetch(`${API}/recurring-invoices`);
+      const data = await res.json();
+      setProfiles(Array.isArray(data) ? data.map(mapRow) : []);
+    } catch (err) {
+      showSnack("Failed to load profiles", "error");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  // ── Save Profile (Create / Edit) ──
-  const handleSave = (form, isEdit) => {
+  // ── Fetch Customers ──
+  const fetchCustomers = useCallback(async () => {
+    try {
+      const res  = await fetch(`${API}/customers`);
+      const data = await res.json();
+      setCustomers(Array.isArray(data) ? data : (data.customers || []));
+    } catch (err) {
+      console.error("fetchCustomers error:", err);
+    }
+  }, []);
+
+  // ── Fetch Items ──
+  const fetchItems = useCallback(async () => {
+    try {
+      const res  = await fetch(`${API}/items`);
+      const data = await res.json();
+      setItems(Array.isArray(data) ? data : (data.items || []));
+    } catch (err) {
+      console.error("fetchItems error:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchProfiles();
+    fetchCustomers();
+    fetchItems();
+  }, [fetchProfiles, fetchCustomers, fetchItems]);
+
+  // ── Create / Update ──
+  const handleSave = async (form, isEdit) => {
     const nextDate = calcNextDate(form.startDate, form.frequency);
-    if (isEdit) {
-      setProfiles((prev) =>
-        prev.map((p) =>
-          p.id === form.id
-            ? { ...form, nextInvoiceDate: form.status === "Active" ? nextDate : "" }
-            : p
-        )
-      );
-    } else {
-      const newProfile = {
-        ...form,
-        id: nextProfileNo(),
-        status: "Active",
-        lastInvoiceDate: form.startDate,
-        nextInvoiceDate: nextDate,
-        generatedInvoices: [],
-      };
-      setProfiles((prev) => [...prev, newProfile]);
+    const payload  = {
+      profile_name:       form.profileName,
+      customer_id:        form.customerId,
+      customer_name:      form.customerName,
+      frequency:          form.frequency,
+      payment_terms:      form.paymentTerms,
+      start_date:         form.startDate,
+      end_date:           form.noEndDate ? null : (form.endDate || null),
+      no_end_date:        form.noEndDate,
+      next_invoice_date:  nextDate,
+      notes:              form.notes,
+      line_items:         form.lineItems,
+    };
+
+    try {
+      if (isEdit) {
+        const res = await fetch(`${API}/recurring-invoices/${form.dbId}`, {
+          method:  "PUT",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        showSnack("Profile updated!");
+      } else {
+        const res = await fetch(`${API}/recurring-invoices`, {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        showSnack("Profile created!");
+      }
+      await fetchProfiles();
+    } catch (err) {
+      showSnack("Failed to save: " + err.message, "error");
     }
   };
 
-  // ── Stop Profile ──
-  const handleStop = (profile) => {
-    setProfiles((prev) =>
-      prev.map((p) =>
-        p.id === profile.id ? { ...p, status: "Stopped", nextInvoiceDate: "" } : p
-      )
-    );
+  // ── Stop ──
+  const handleStop = async (profile) => {
+    try {
+      const res = await fetch(`${API}/recurring-invoices/${profile.dbId}/stop`, { method: "PUT" });
+      if (!res.ok) throw new Error(await res.text());
+      await fetchProfiles();
+      showSnack(`${profile.profileName} stopped`);
+    } catch (err) {
+      showSnack("Failed to stop: " + err.message, "error");
+    }
   };
 
-  // ── Resume Profile ──
-  const handleResume = (profile) => {
+  // ── Resume ──
+  const handleResume = async (profile) => {
     const nextDate = calcNextDate(profile.lastInvoiceDate, profile.frequency);
-    setProfiles((prev) =>
-      prev.map((p) =>
-        p.id === profile.id ? { ...p, status: "Active", nextInvoiceDate: nextDate } : p
-      )
-    );
+    try {
+      const res = await fetch(`${API}/recurring-invoices/${profile.dbId}/resume`, {
+        method:  "PUT",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ next_invoice_date: nextDate }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      await fetchProfiles();
+      showSnack(`${profile.profileName} resumed!`);
+    } catch (err) {
+      showSnack("Failed to resume: " + err.message, "error");
+    }
   };
 
-  // ── Delete Profile ──
-  const handleDelete = (profile) => {
+  // ── Delete ──
+  const handleDelete = async (profile) => {
     if (!window.confirm(`"${profile.profileName}" delete చేయాలా?`)) return;
-    setProfiles((prev) => prev.filter((p) => p.id !== profile.id));
+    try {
+      const res = await fetch(`${API}/recurring-invoices/${profile.dbId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(await res.text());
+      await fetchProfiles();
+      showSnack(`${profile.profileName} deleted`);
+    } catch (err) {
+      showSnack("Failed to delete: " + err.message, "error");
+    }
   };
 
   // ── Filter ──
   const filtered = profiles.filter((p) => {
+    const q = search.toLowerCase();
     const matchSearch =
-      p.customerName.toLowerCase().includes(search.toLowerCase()) ||
-      p.profileName.toLowerCase().includes(search.toLowerCase()) ||
-      p.id.toLowerCase().includes(search.toLowerCase());
+      p.customerName.toLowerCase().includes(q) ||
+      p.profileName.toLowerCase().includes(q)  ||
+      p.id.toLowerCase().includes(q);
     const matchStatus = statusFilter === "All" || p.status === statusFilter;
     return matchSearch && matchStatus;
   });
@@ -714,9 +687,12 @@ function RecurringInvoices() {
 
   return (
     <Box>
-      <Typography variant="h4" fontWeight="bold" sx={{ mb: 3 }}>Recurring Invoices</Typography>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 3 }}>
+        <Typography variant="h4" fontWeight="bold">Recurring Invoices</Typography>
+        <IconButton onClick={fetchProfiles} title="Refresh"><RefreshIcon /></IconButton>
+      </Box>
 
-      {/* ── Stats ── */}
+      {/* Stats */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {[
           { label: "Total Profiles",      value: profiles.length,        color: "#1976d2" },
@@ -726,7 +702,7 @@ function RecurringInvoices() {
           { label: "Total Value / Cycle", value: formatPrice(totalValue), color: "#ed6c02" },
         ].map((s) => (
           <Grid item xs={12} md={2.4} key={s.label}>
-            <Card sx={{ borderLeft: `4px solid ${s.color}` }}>
+            <Card>
               <CardContent sx={{ py: 1.5 }}>
                 <Typography color="text.secondary" variant="body2">{s.label}</Typography>
                 <Typography variant="h6" fontWeight="bold">{s.value}</Typography>
@@ -736,133 +712,121 @@ function RecurringInvoices() {
         ))}
       </Grid>
 
-      {/* ── Search + Filter + New ── */}
+      {/* Search + Filter + New */}
       <Box sx={{ display: "flex", gap: 2, mb: 3, flexWrap: "wrap" }}>
-        <TextField
-          label="Search Profile / Customer"
-          size="small" value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          sx={{ width: 280 }}
-        />
-        <TextField
-          select size="small" label="Status" value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)} sx={{ width: 160 }}
-        >
+        <TextField label="Search Profile / Customer" size="small"
+          value={search} onChange={(e) => setSearch(e.target.value)}
+          sx={{ width: 280 }} />
+        <TextField select size="small" label="Status" value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)} sx={{ width: 160 }}>
           {["All", "Active", "Stopped", "Expired"].map((s) => (
             <MenuItem key={s} value={s}>{s}</MenuItem>
           ))}
         </TextField>
         <Box sx={{ flexGrow: 1 }} />
-        <Button
-          variant="contained" startIcon={<AddIcon />}
-          onClick={() => { setEditData(null); setFormOpen(true); }}
-        >
+        <Button variant="contained" startIcon={<AddIcon />}
+          onClick={() => { setEditData(null); setFormOpen(true); }}>
           + New
         </Button>
       </Box>
 
-      {/* ── Table ── */}
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead sx={{ bgcolor: "#f5f5f5" }}>
-            <TableRow>
-              {["Customer Name", "Profile Name", "Frequency", "Last Invoice Date", "Next Invoice Date", "Status", "Actions"].map((h) => (
-                <TableCell key={h}><strong>{h}</strong></TableCell>
-              ))}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {filtered.map((p) => (
-              <TableRow key={p.id} hover>
-                <TableCell>{p.customerName}</TableCell>
-                <TableCell>
-                  <Typography
-                    sx={{ color: "#1976d2", fontWeight: "bold", cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
-                    onClick={() => { setSelected(p); setViewOpen(true); }}
-                  >
-                    {p.profileName}
-                  </Typography>
-                </TableCell>
-                <TableCell>{p.frequency}</TableCell>
-                <TableCell>{formatDate(p.lastInvoiceDate)}</TableCell>
-                <TableCell>
-                  <Typography
-                    sx={{ color: p.status === "Active" ? "#2e7d32" : "text.secondary", fontWeight: p.status === "Active" ? "bold" : "normal" }}
-                  >
-                    {p.status === "Active" ? formatDate(p.nextInvoiceDate) : "--"}
-                  </Typography>
-                </TableCell>
-                <TableCell>
-                  <Chip
-                    label={p.status}
-                    color={STATUS_COLOR[p.status] || "default"}
-                    size="small"
-                  />
-                </TableCell>
-                <TableCell>
-                  <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
-                    {/* View */}
-                    <Tooltip title="View Profile">
-                      <IconButton size="small" color="primary"
-                        onClick={() => { setSelected(p); setViewOpen(true); }}>
-                        <VisibilityIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-
-                    {/* Edit */}
-                    <Tooltip title="Edit Profile">
-                      <IconButton size="small" color="default"
-                        onClick={() => { setEditData({ ...p }); setFormOpen(true); }}>
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-
-                    {/* Generated Invoices */}
-                    <Tooltip title="View Generated Invoices">
-                      <IconButton size="small" color="secondary"
-                        onClick={() => { setSelected(p); setGenInvOpen(true); }}>
-                        <ReceiptLongIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-
-                    {/* Stop / Resume */}
-                    {p.status === "Active" ? (
-                      <Tooltip title="Stop Recurring">
-                        <IconButton size="small" color="error" onClick={() => handleStop(p)}>
-                          <StopIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    ) : p.status === "Stopped" ? (
-                      <Tooltip title="Resume Recurring">
-                        <IconButton size="small" color="success" onClick={() => handleResume(p)}>
-                          <PlayArrowIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    ) : null}
-
-                    {/* Delete */}
-                    <Tooltip title="Delete Profile">
-                      <IconButton size="small" color="error" onClick={() => handleDelete(p)}>
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
-                </TableCell>
+      {/* Table */}
+      {loading ? (
+        <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead sx={{ bgcolor: "#f5f5f5" }}>
+              <TableRow>
+                {["Customer Name", "Profile Name", "Frequency", "Last Invoice Date", "Next Invoice Date", "Status", "Actions"].map((h) => (
+                  <TableCell key={h}><strong>{h}</strong></TableCell>
+                ))}
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            </TableHead>
+            <TableBody>
+              {filtered.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} align="center" sx={{ py: 4, color: "text.secondary" }}>
+                    No profiles found
+                  </TableCell>
+                </TableRow>
+              ) : filtered.map((p) => (
+                <TableRow key={p.id} hover>
+                  <TableCell>{p.customerName}</TableCell>
+                  <TableCell>
+                    <Typography sx={{ color: "#1976d2", fontWeight: "bold", cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
+                      onClick={() => { setSelected(p); setViewOpen(true); }}>
+                      {p.profileName}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>{p.frequency}</TableCell>
+                  <TableCell>{formatDate(p.lastInvoiceDate)}</TableCell>
+                  <TableCell>
+                    <Typography sx={{ color: p.status === "Active" ? "#2e7d32" : "text.secondary", fontWeight: p.status === "Active" ? "bold" : "normal" }}>
+                      {p.status === "Active" ? formatDate(p.nextInvoiceDate) : "--"}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Chip label={p.status} color={STATUS_COLOR[p.status] || "default"} size="small" />
+                  </TableCell>
+                  <TableCell>
+                    <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
+                      <Tooltip title="View Profile">
+                        <IconButton size="small" color="primary"
+                          onClick={() => { setSelected(p); setViewOpen(true); }}>
+                          <VisibilityIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Edit Profile">
+                        <IconButton size="small"
+                          onClick={() => { setEditData({ ...p }); setFormOpen(true); }}>
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="View Generated Invoices">
+                        <IconButton size="small" color="secondary"
+                          onClick={() => { setSelected(p); setGenInvOpen(true); }}>
+                          <ReceiptLongIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      {p.status === "Active" ? (
+                        <Tooltip title="Stop Recurring">
+                          <IconButton size="small" color="error" onClick={() => handleStop(p)}>
+                            <StopIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      ) : p.status === "Stopped" ? (
+                        <Tooltip title="Resume Recurring">
+                          <IconButton size="small" color="success" onClick={() => handleResume(p)}>
+                            <PlayArrowIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      ) : null}
+                      <Tooltip title="Delete Profile">
+                        <IconButton size="small" color="error" onClick={() => handleDelete(p)}>
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
 
-      {/* ── CREATE / EDIT DIALOG ── */}
+      {/* Dialogs */}
       <ProfileFormDialog
         open={formOpen}
         onClose={() => { setFormOpen(false); setEditData(null); }}
         onSave={handleSave}
         editData={editData}
+        customers={customers}
+        items={items}
       />
-
-      {/* ── VIEW PROFILE DIALOG ── */}
       <ViewProfileDialog
         open={viewOpen}
         onClose={() => setViewOpen(false)}
@@ -870,13 +834,20 @@ function RecurringInvoices() {
         onStop={handleStop}
         onResume={handleResume}
       />
-
-      {/* ── GENERATED INVOICES DIALOG ── */}
       <GeneratedInvoicesDialog
         open={genInvOpen}
         onClose={() => setGenInvOpen(false)}
         profile={selected}
       />
+
+      {/* Snackbar */}
+      <Snackbar open={snack.open} autoHideDuration={3000}
+        onClose={() => setSnack({ ...snack, open: false })}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}>
+        <Alert severity={snack.severity} onClose={() => setSnack({ ...snack, open: false })}>
+          {snack.msg}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

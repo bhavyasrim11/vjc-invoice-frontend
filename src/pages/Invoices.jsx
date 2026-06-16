@@ -1,12 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import axios from "axios";
 import {
   Box, Typography, Grid, Card, CardContent, Button, TextField,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Paper, Dialog, DialogTitle, DialogContent, DialogActions,
-  MenuItem, Chip, Divider, IconButton,
+  MenuItem, Chip, Divider, IconButton, CircularProgress, Alert,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
+
+// ─── API Base ────────────────────────────────────────────────
+const API = axios.create({ baseURL: "http://localhost:5000/api" });
 
 // ─── Helpers ────────────────────────────────────────────────
 const formatPrice = (value) =>
@@ -24,40 +28,25 @@ const dueDateCalc = (term) => {
   return d.toISOString().split("T")[0];
 };
 
-// ✅ All 6 statuses — Zoho life cycle complete
 const STATUS_COLOR = {
-  Draft:           "default",
-  Sent:            "primary",
-  Unpaid:          "warning",
-  Overdue:         "error",
+  Draft:            "default",
+  Sent:             "primary",
+  Unpaid:           "warning",
+  Overdue:          "error",
   "Partially Paid": "info",
-  Paid:            "success",
-  Cancelled:       "default",
+  Paid:             "success",
+  Cancelled:        "default",
 };
 
-// ✅ Life cycle flow: which statuses are allowed next from current
 const NEXT_STATUS = {
-  Draft:           ["Sent", "Cancelled"],
-  Sent:            ["Unpaid", "Partially Paid", "Paid", "Cancelled"],
-  Unpaid:          ["Overdue", "Partially Paid", "Paid", "Cancelled"],
-  Overdue:         ["Partially Paid", "Paid", "Cancelled"],
+  Draft:            ["Sent", "Cancelled"],
+  Sent:             ["Unpaid", "Partially Paid", "Paid", "Cancelled"],
+  Unpaid:           ["Overdue", "Partially Paid", "Paid", "Cancelled"],
+  Overdue:          ["Partially Paid", "Paid", "Cancelled"],
   "Partially Paid": ["Paid", "Overdue", "Cancelled"],
-  Paid:            [],
-  Cancelled:       [],
+  Paid:             [],
+  Cancelled:        [],
 };
-
-// ─── Static seed data (replace with DB later) ───────────────
-const CUSTOMERS = [
-  { id: "CUS001", name: "Rahul Kumar", company: "ABC Pvt Ltd", email: "rahul@gmail.com" },
-  { id: "CUS002", name: "Priya Reddy", company: "XYZ Solutions", email: "priya@gmail.com" },
-  { id: "CUS003", name: "Vikram Singh", company: "Tech Corp", email: "vikram@gmail.com" },
-];
-
-const ITEMS_LIST = [
-  { id: 1, serviceName: "Canada Study Visa", price: "150000", gst: "18" },
-  { id: 2, serviceName: "Australia PR",       price: "250000", gst: "18" },
-  { id: 3, serviceName: "UK Tourist Visa",    price: "65000",  gst: "18" },
-];
 
 const TERMS_OPTIONS = ["Due on Receipt", "Net 15", "Net 30", "Net 45"];
 
@@ -73,74 +62,63 @@ const emptyLineItem = () => ({
 
 // ─── Component ──────────────────────────────────────────────
 function Invoices() {
-  const [invoices, setInvoices] = useState([
-    {
-      id: "INV-000001",
-      customerId: "CUS001",
-      customerName: "Rahul Kumar",
-      invoiceDate: "2026-05-28",
-      dueDate: "2026-05-28",
-      terms: "Due on Receipt",
-      lineItems: [
-        { _key: 1, itemId: 1, description: "Canada Study Visa", qty: 1, rate: 150000, gst: 18, discount: 0 },
-      ],
-      notes: "Thanks for your business.",
-      status: "Paid",
-      totalAmount: 177000,
-    },
-    {
-      id: "INV-000002",
-      customerId: "CUS002",
-      customerName: "Priya Reddy",
-      invoiceDate: "2026-06-01",
-      dueDate: "2026-06-01",
-      terms: "Due on Receipt",
-      lineItems: [
-        { _key: 2, itemId: 2, description: "Australia PR", qty: 1, rate: 250000, gst: 18, discount: 0 },
-      ],
-      notes: "",
-      status: "Sent",
-      totalAmount: 295000,
-    },
-    {
-      id: "INV-000003",
-      customerId: "CUS003",
-      customerName: "Vikram Singh",
-      invoiceDate: "2026-05-20",
-      dueDate: "2026-05-20",
-      terms: "Due on Receipt",
-      lineItems: [
-        { _key: 3, itemId: 3, description: "UK Tourist Visa", qty: 1, rate: 65000, gst: 18, discount: 0 },
-      ],
-      notes: "",
-      status: "Overdue",
-      totalAmount: 76700,
-    },
-  ]);
+  const [invoices, setInvoices]   = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [itemsList, setItemsList] = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState("");
 
-  // ── form state ──
   const [open, setOpen]         = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
   const [selected, setSelected] = useState(null);
   const [search, setSearch]     = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
 
-  // ✅ Status change dialog
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [statusChangeInv, setStatusChangeInv]   = useState(null);
   const [newStatus, setNewStatus]               = useState("");
 
+  const [form, setForm]     = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  // ── Fetch all data on mount ──
+  useEffect(() => {
+    fetchAll();
+  }, []);
+
+  const fetchAll = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const [invRes, cRes, iRes] = await Promise.all([
+        API.get("/sales-invoices"),
+        API.get("/customers"),
+        API.get("/items"),
+      ]);
+      setInvoices(invRes.data.data || []);
+      setCustomers(cRes.data.customers || []);
+      setItemsList(iRes.data.items || []);
+    } catch (err) {
+      setError("Data load cheyyaledu. Backend running unnada check cheyyandi.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── Auto Invoice Number ──
   const nextInvoiceNo = () => {
-    const nums = invoices.map((inv) => parseInt(inv.id.replace("INV-", ""), 10));
-    const max  = nums.length ? Math.max(...nums) : 0;
+    const nums = invoices.map((inv) => {
+      const match = (inv.invoice_id || inv.id || "").match(/(\d+)$/);
+      return match ? parseInt(match[1], 10) : 0;
+    });
+    const max = nums.length ? Math.max(...nums) : 0;
     return `INV-${String(max + 1).padStart(6, "0")}`;
   };
 
-  const [form, setForm] = useState(null);
-
   const openNew = () => {
     setForm({
-      id: nextInvoiceNo(),
+      id: null,
+      invoice_number: nextInvoiceNo(),
       customerId: "",
       customerName: "",
       invoiceDate: today(),
@@ -153,7 +131,7 @@ function Invoices() {
     setOpen(true);
   };
 
-  // ── line item helpers ──
+  // ── Line item helpers ──
   const updateLine = (key, field, value) => {
     setForm((f) => ({
       ...f,
@@ -161,11 +139,13 @@ function Invoices() {
         if (li._key !== key) return li;
         const updated = { ...li, [field]: value };
         if (field === "itemId") {
-          const found = ITEMS_LIST.find((i) => i.id === Number(value));
+          const found = itemsList.find(
+            (i) => String(i.id) === String(value)
+          );
           if (found) {
-            updated.description = found.serviceName;
-            updated.rate        = Number(found.price);
-            updated.gst         = Number(found.gst);
+            updated.description = found.service_name || "";
+            updated.rate        = Number(found.price || 0);
+            updated.gst         = Number(found.gst || 18);
           }
         }
         return updated;
@@ -176,7 +156,7 @@ function Invoices() {
   const addLine    = () => setForm((f) => ({ ...f, lineItems: [...f.lineItems, emptyLineItem()] }));
   const removeLine = (key) => setForm((f) => ({ ...f, lineItems: f.lineItems.filter((l) => l._key !== key) }));
 
-  // ── calculations ──
+  // ── Calculations ──
   const lineAmount = (li) => {
     const base    = li.qty * li.rate;
     const disc    = base * (li.discount / 100);
@@ -189,67 +169,150 @@ function Invoices() {
     let subTotal = 0, totalGST = 0, grandTotal = 0;
     lineItems.forEach((li) => {
       const a = lineAmount(li);
-      subTotal  += a.taxable;
-      totalGST  += a.gstAmt;
+      subTotal   += a.taxable;
+      totalGST   += a.gstAmt;
       grandTotal += a.total;
     });
     return { subTotal, totalGST, grandTotal };
   };
 
-  // ── save ──
-  const handleSave = (status) => {
-    if (!form.customerId || form.lineItems.every((l) => !l.itemId && !l.description)) return;
-    const { grandTotal } = totals(form.lineItems);
-    const invoice = { ...form, status, totalAmount: grandTotal };
+  // ── Normalize invoice from API response ──
+  const normalizeInvoice = (inv) => ({
+    id:               inv.invoice_id || inv.id,
+    invoice_number:   inv.invoice_id || inv.invoice_number || inv.id,
+    customerId:       inv.customer_id || inv.customerId,
+    customerName:     inv.customer_name || inv.customerName || "",
+    invoiceDate:      (inv.invoice_date || inv.invoiceDate || "").slice(0, 10),
+    dueDate:          (inv.due_date || inv.dueDate || "").slice(0, 10),
+    terms:            inv.terms || "Due on Receipt",
+    lineItems:        (inv.line_items || inv.lineItems || []).map((li, idx) => ({
+      _key:        li._key || li.id || idx,
+      itemId:      li.item_id || li.itemId || "",
+      description: li.description || "",
+      qty:         Number(li.qty || li.quantity || 1),
+      rate:        Number(li.rate || li.unit_price || 0),
+      gst:         Number(li.gst || li.tax_rate || 18),
+      discount:    Number(li.discount || 0),
+    })),
+    notes:            inv.notes || "",
+    status:           inv.status || "Draft",
+    totalAmount:      Number(inv.total_amount || inv.totalAmount || 0),
+  });
 
-    setInvoices((prev) => {
-      const exists = prev.find((i) => i.id === invoice.id);
-      return exists
-        ? prev.map((i) => (i.id === invoice.id ? invoice : i))
-        : [...prev, invoice];
-    });
-    setOpen(false);
+  // ── Save (Create / Update) ──
+  const handleSave = async (status) => {
+    if (!form.customerId || form.lineItems.every((l) => !l.itemId && !l.description)) return;
+    setSaving(true);
+    const { grandTotal } = totals(form.lineItems);
+
+    const payload = {
+      customer_id:   form.customerId,
+      customer_name: form.customerName,
+      invoice_date:  form.invoiceDate,
+      due_date:      form.dueDate,
+      terms:         form.terms,
+      notes:         form.notes,
+      status:        status,
+      total_amount:  grandTotal,
+      line_items:    form.lineItems.map((li) => ({
+        item_id:     li.itemId,
+        description: li.description,
+        qty:         li.qty,
+        rate:        li.rate,
+        gst:         li.gst,
+        discount:    li.discount,
+      })),
+    };
+
+    try {
+      if (form.id) {
+        await API.put(`/sales-invoices/${form.id}`, payload);
+      } else {
+        await API.post("/sales-invoices", payload);
+      }
+      await fetchAll();
+      setOpen(false);
+    } catch (err) {
+      setError("Invoice save cheyyaledu. Try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  // ✅ Status change handler
-  const handleStatusChange = () => {
+  // ── Status change ──
+  const handleStatusChange = async () => {
     if (!newStatus) return;
-    setInvoices((prev) =>
-      prev.map((i) => (i.id === statusChangeInv.id ? { ...i, status: newStatus } : i))
-    );
+    try {
+      await API.put(`/sales-invoices/${statusChangeInv.id}`, { status: newStatus });
+      await fetchAll();
+    } catch {
+      setError("Status update cheyyaledu.");
+    }
     setStatusDialogOpen(false);
     setStatusChangeInv(null);
     setNewStatus("");
   };
 
-  // ── filter ──
-  const filtered = invoices.filter((inv) => {
-    const matchSearch = inv.customerName.toLowerCase().includes(search.toLowerCase()) ||
-                        inv.id.toLowerCase().includes(search.toLowerCase());
+  // ── Delete ──
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete chesaali?")) return;
+    try {
+      await API.delete(`/sales-invoices/${id}`);
+      setInvoices((prev) => prev.filter((i) => (i.invoice_id || i.id) !== id));
+    } catch {
+      setError("Delete cheyyaledu.");
+    }
+  };
+
+  // ── Normalize list for display ──
+  const normalizedInvoices = invoices.map(normalizeInvoice);
+
+  // ── Filter ──
+  const filtered = normalizedInvoices.filter((inv) => {
+    const matchSearch =
+      (inv.customerName || "").toLowerCase().includes(search.toLowerCase()) ||
+      (inv.invoice_number || "").toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "All" || inv.status === statusFilter;
     return matchSearch && matchStatus;
   });
 
-  // ✅ Stats — all statuses counted
-  const totalRevenue    = invoices.filter((i) => i.status === "Paid").reduce((s, i) => s + i.totalAmount, 0);
-  const outstanding     = invoices.filter((i) => ["Sent", "Unpaid", "Overdue", "Partially Paid"].includes(i.status)).reduce((s, i) => s + i.totalAmount, 0);
-  const overdueCount    = invoices.filter((i) => i.status === "Overdue").length;
-  const partialCount    = invoices.filter((i) => i.status === "Partially Paid").length;
+  // ── Stats ──
+  const totalRevenue = normalizedInvoices
+    .filter((i) => i.status === "Paid")
+    .reduce((s, i) => s + i.totalAmount, 0);
+  const outstanding = normalizedInvoices
+    .filter((i) => ["Sent", "Unpaid", "Overdue", "Partially Paid"].includes(i.status))
+    .reduce((s, i) => s + i.totalAmount, 0);
+  const overdueCount = normalizedInvoices.filter((i) => i.status === "Overdue").length;
+  const partialCount = normalizedInvoices.filter((i) => i.status === "Partially Paid").length;
+  const paidCount    = normalizedInvoices.filter((i) => i.status === "Paid").length;
 
   // ────────────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", mt: 8 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   return (
     <Box>
       <Typography variant="h4" fontWeight="bold" sx={{ mb: 3 }}>Invoices</Typography>
 
-      {/* ✅ Stats — updated with overdue + partial */}
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>{error}</Alert>
+      )}
+
+      {/* ✅ Stats */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {[
-          { label: "Total Invoices",   value: invoices.length,          color: "#1976d2" },
-          { label: "Paid",             value: invoices.filter((i) => i.status === "Paid").length, color: "#2e7d32" },
-          { label: "Overdue",          value: overdueCount,             color: "#d32f2f" },
-          { label: "Partially Paid",   value: partialCount,             color: "#0288d1" },
-          { label: "Outstanding",      value: formatPrice(outstanding), color: "#ed6c02" },
-          { label: "Total Revenue",    value: formatPrice(totalRevenue), color: "#9c27b0" },
+          { label: "Total Invoices", value: normalizedInvoices.length, color: "#1976d2" },
+          { label: "Paid",           value: paidCount,                 color: "#2e7d32" },
+          { label: "Overdue",        value: overdueCount,              color: "#d32f2f" },
+          { label: "Partially Paid", value: partialCount,              color: "#0288d1" },
+          { label: "Outstanding",    value: formatPrice(outstanding),  color: "#ed6c02" },
+          { label: "Total Revenue",  value: formatPrice(totalRevenue), color: "#9c27b0" },
         ].map((s) => (
           <Grid item xs={12} md={2} key={s.label}>
             <Card sx={{ borderLeft: `4px solid ${s.color}` }}>
@@ -296,9 +359,15 @@ function Invoices() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {filtered.map((inv) => (
+            {filtered.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} align="center" sx={{ py: 4, color: "text.secondary" }}>
+                  No invoices found
+                </TableCell>
+              </TableRow>
+            ) : filtered.map((inv) => (
               <TableRow key={inv.id} hover>
-                <TableCell sx={{ color: "#1976d2", fontWeight: "bold" }}>{inv.id}</TableCell>
+                <TableCell sx={{ color: "#1976d2", fontWeight: "bold" }}>{inv.invoice_number}</TableCell>
                 <TableCell>{inv.customerName}</TableCell>
                 <TableCell>{inv.invoiceDate}</TableCell>
                 <TableCell
@@ -308,7 +377,6 @@ function Invoices() {
                 </TableCell>
                 <TableCell><strong>{formatPrice(inv.totalAmount)}</strong></TableCell>
                 <TableCell>
-                  {/* ✅ Clickable chip → status change dialog */}
                   <Chip
                     label={inv.status}
                     color={STATUS_COLOR[inv.status] || "default"}
@@ -326,8 +394,7 @@ function Invoices() {
                 <TableCell>
                   <Button size="small" onClick={() => { setSelected(inv); setViewOpen(true); }}>View</Button>
                   <Button size="small" onClick={() => { setForm({ ...inv }); setOpen(true); }}>Edit</Button>
-                  <Button size="small" color="error"
-                    onClick={() => setInvoices(invoices.filter((i) => i.id !== inv.id))}>
+                  <Button size="small" color="error" onClick={() => handleDelete(inv.id)}>
                     Delete
                   </Button>
                 </TableCell>
@@ -368,7 +435,7 @@ function Invoices() {
       {/* ── CREATE / EDIT DIALOG ── */}
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="lg" fullWidth>
         <DialogTitle sx={{ bgcolor: "#1976d2", color: "white" }}>
-          {form?.id} — New Invoice
+          {form?.invoice_number} — {form?.id ? "Edit Invoice" : "New Invoice"}
         </DialogTitle>
 
         {form && (
@@ -381,19 +448,33 @@ function Invoices() {
                   select fullWidth label="Customer Name *"
                   value={form.customerId}
                   onChange={(e) => {
-                    const c = CUSTOMERS.find((x) => x.id === e.target.value);
-                    setForm({ ...form, customerId: e.target.value, customerName: c?.name || "" });
+                    const c = customers.find(
+                      (x) => String(x.customer_id) === String(e.target.value)
+                    );
+                    setForm({
+                      ...form,
+                      customerId: e.target.value,
+                      customerName: c?.name || c?.customer_name || c?.display_name || "",
+                    });
                   }}
                 >
-                  {CUSTOMERS.map((c) => (
-                    <MenuItem key={c.id} value={c.id}>{c.name} — {c.company}</MenuItem>
-                  ))}
+                  {customers.map((c) => {
+                    const cId   = c.customer_id;
+                    const cName = c.name || c.customer_name || c.display_name || "";
+                    const cComp = c.company || c.company_name || "";
+
+                    return (
+                      <MenuItem key={cId} value={cId}>
+                        {cName}{cComp ? ` — ${cComp}` : ""}
+                      </MenuItem>
+                    );
+                  })}
                 </TextField>
               </Grid>
 
               {/* Invoice # */}
               <Grid item xs={12} md={6}>
-                <TextField fullWidth label="Invoice #" value={form.id} disabled />
+                <TextField fullWidth label="Invoice #" value={form.invoice_number} disabled />
               </Grid>
 
               {/* Dates */}
@@ -451,8 +532,8 @@ function Invoices() {
                             onChange={(e) => updateLine(li._key, "itemId", e.target.value)}
                           >
                             <MenuItem value="">-- Select --</MenuItem>
-                            {ITEMS_LIST.map((it) => (
-                              <MenuItem key={it.id} value={it.id}>{it.serviceName}</MenuItem>
+                            {itemsList.map((it) => (
+                              <MenuItem key={it.id} value={it.id}>{it.service_name}</MenuItem>
                             ))}
                           </TextField>
                         </TableCell>
@@ -537,16 +618,20 @@ function Invoices() {
         )}
 
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setOpen(false)}>Cancel</Button>
-          <Button variant="outlined" onClick={() => handleSave("Draft")}>Save as Draft</Button>
-          <Button variant="contained" onClick={() => handleSave("Sent")}>Save and Send</Button>
+          <Button onClick={() => setOpen(false)} disabled={saving}>Cancel</Button>
+          <Button variant="outlined" onClick={() => handleSave("Draft")} disabled={saving}>
+            {saving ? <CircularProgress size={18} /> : "Save as Draft"}
+          </Button>
+          <Button variant="contained" onClick={() => handleSave("Sent")} disabled={saving}>
+            {saving ? <CircularProgress size={18} /> : "Save and Send"}
+          </Button>
         </DialogActions>
       </Dialog>
 
       {/* ── VIEW DIALOG ── */}
       <Dialog open={viewOpen} onClose={() => setViewOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle sx={{ bgcolor: "#1976d2", color: "white" }}>
-          Invoice Details — {selected?.id}
+          Invoice Details — {selected?.invoice_number}
         </DialogTitle>
 
         {selected && (

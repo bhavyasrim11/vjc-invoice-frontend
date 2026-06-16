@@ -9,46 +9,14 @@ import {
   Legend,
 } from "recharts";
 
-const data = [
-  {
-    month: "Jan",
-    sales: 4000,
-    receipts: 3200,
-    expenses: 1800,
-  },
-  {
-    month: "Feb",
-    sales: 3000,
-    receipts: 2500,
-    expenses: 1200,
-  },
-  {
-    month: "Mar",
-    sales: 5000,
-    receipts: 4200,
-    expenses: 2100,
-  },
-  {
-    month: "Apr",
-    sales: 4500,
-    receipts: 3800,
-    expenses: 1700,
-  },
-  {
-    month: "May",
-    sales: 6000,
-    receipts: 5200,
-    expenses: 2600,
-  },
-  {
-    month: "Jun",
-    sales: 7000,
-    receipts: 6200,
-    expenses: 3000,
-  },
-];
+const fmt = (n) => "₹" + Number(n || 0).toLocaleString("en-IN");
 
-function SalesChart() {
+function SalesChart({ data }) {
+  const chartData = data?.chart || [];
+  const totalSales = data?.totalSales || 0;
+  const totalReceipts = data?.totalReceipts || 0;
+  const totalExpenses = data?.totalExpenses || 0;
+
   return (
     <div
       style={{
@@ -106,7 +74,7 @@ function SalesChart() {
             width="100%"
             height={400}
           >
-            <BarChart data={data}>
+            <BarChart data={chartData}>
               <CartesianGrid
                 strokeDasharray="3 3"
               />
@@ -115,7 +83,7 @@ function SalesChart() {
 
               <YAxis />
 
-              <Tooltip />
+              <Tooltip formatter={(v) => fmt(v)} />
 
               <Legend />
 
@@ -170,7 +138,7 @@ function SalesChart() {
                 margin: 0,
               }}
             >
-              ₹5,71,291
+              {fmt(totalSales)}
             </h2>
           </div>
 
@@ -189,7 +157,7 @@ function SalesChart() {
                 margin: 0,
               }}
             >
-              ₹4,23,540
+              {fmt(totalReceipts)}
             </h2>
           </div>
 
@@ -208,7 +176,7 @@ function SalesChart() {
                 margin: 0,
               }}
             >
-              ₹1,52,170
+              {fmt(totalExpenses)}
             </h2>
           </div>
         </div>

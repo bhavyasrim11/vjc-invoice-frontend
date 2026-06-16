@@ -12,34 +12,9 @@ import {
   Button,
 } from "@mui/material";
 
-function RecentInvoices() {
-  const invoices = [
-    {
-      id: "INV-001",
-      customer: "Rahul Kumar",
-      amount: "₹12,000",
-      status: "Paid",
-    },
-    {
-      id: "INV-002",
-      customer: "Anjali Sharma",
-      amount: "₹8,500",
-      status: "Pending",
-    },
-    {
-      id: "INV-003",
-      customer: "Vikram Singh",
-      amount: "₹15,000",
-      status: "Paid",
-    },
-    {
-      id: "INV-004",
-      customer: "Priya Reddy",
-      amount: "₹6,000",
-      status: "Pending",
-    },
-  ];
+const fmt = (n) => "₹" + Number(n || 0).toLocaleString("en-IN");
 
+function RecentInvoices({ invoices = [] }) {
   const handleViewAll = () => {
     alert("Invoices Page Coming Soon");
   };
@@ -105,9 +80,15 @@ function RecentInvoices() {
           </TableHead>
 
           <TableBody>
-            {invoices.map((invoice) => (
+            {invoices.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} align="center" sx={{ py: 3, color: "text.secondary" }}>
+                  No invoices yet
+                </TableCell>
+              </TableRow>
+            ) : invoices.map((invoice) => (
               <TableRow
-                key={invoice.id}
+                key={invoice.invoiceNo}
                 hover
                 sx={{
                   "&:hover": {
@@ -122,11 +103,11 @@ function RecentInvoices() {
                     cursor: "pointer",
                   }}
                 >
-                  {invoice.id}
+                  {invoice.invoiceNo}
                 </TableCell>
 
                 <TableCell>
-                  {invoice.customer}
+                  {invoice.customerName}
                 </TableCell>
 
                 <TableCell
@@ -135,7 +116,7 @@ function RecentInvoices() {
                     fontWeight: 700,
                   }}
                 >
-                  {invoice.amount}
+                  {fmt(invoice.amount)}
                 </TableCell>
 
                 <TableCell>
@@ -144,6 +125,8 @@ function RecentInvoices() {
                     color={
                       invoice.status === "Paid"
                         ? "success"
+                        : invoice.status === "Overdue"
+                        ? "error"
                         : "warning"
                     }
                     size="small"

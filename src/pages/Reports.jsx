@@ -1,39 +1,25 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import axios from "axios";
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
+const API = axios.create({ baseURL: "http://localhost:5000/api" });
+
+// Reports already connected to real backend data
+const API_REPORT_MAP = {
+  salesByCustomer:        "/reports/sales-by-customer",
+  salesByItem:            "/reports/sales-by-item",
+  invoiceDetails:         "/reports/invoice-details",
+  quoteDetails:           "/reports/quote-details",
+  paymentsReceived:       "/reports/payments-received",
+  arAgingSummary:         "/reports/ar-aging-summary",
+  customerBalanceSummary: "/reports/customer-balance-summary",
+};
+
+// ─── Mock Data (for reports not yet connected — Expenses/Taxes/Projects/Activity) ──
 const MOCK_DATA = {
-  salesByCustomer: [
-    { customer: "ABC Pvt Ltd", invoices: 12, amount: 245000, paid: 220000, outstanding: 25000 },
-    { customer: "XYZ Solutions", invoices: 8, amount: 180000, paid: 180000, outstanding: 0 },
-    { customer: "Global Tech", invoices: 5, amount: 95000, paid: 60000, outstanding: 35000 },
-    { customer: "Raj Enterprises", invoices: 3, amount: 42000, paid: 42000, outstanding: 0 },
-  ],
-  salesByItem: [
-    { item: "Web Development", qty: 45, amount: 337500, avgPrice: 7500 },
-    { item: "UI/UX Design", qty: 30, amount: 150000, avgPrice: 5000 },
-    { item: "SEO Services", qty: 20, amount: 60000, avgPrice: 3000 },
-    { item: "Consulting", qty: 15, amount: 112500, avgPrice: 7500 },
-  ],
   salesBySalesPerson: [
     { person: "Ravi Kumar", invoices: 14, amount: 280000, commission: 14000 },
     { person: "Priya Sharma", invoices: 10, amount: 190000, commission: 9500 },
     { person: "Arun Reddy", invoices: 4, amount: 92000, commission: 4600 },
-  ],
-  arAgingSummary: [
-    { customer: "ABC Pvt Ltd", current: 25000, days30: 0, days60: 0, days90: 0, total: 25000 },
-    { customer: "Global Tech", current: 0, days30: 20000, days60: 15000, days90: 0, total: 35000 },
-    { customer: "Raj Enterprises", current: 0, days30: 0, days60: 0, days90: 5000, total: 5000 },
-  ],
-  invoiceDetails: [
-    { invoiceNo: "INV-001", customer: "ABC Pvt Ltd", date: "2026-06-01", dueDate: "2026-06-15", amount: 45000, status: "Paid" },
-    { invoiceNo: "INV-002", customer: "XYZ Solutions", date: "2026-06-02", dueDate: "2026-06-16", amount: 30000, status: "Paid" },
-    { invoiceNo: "INV-003", customer: "Global Tech", date: "2026-06-03", dueDate: "2026-06-17", amount: 55000, status: "Overdue" },
-    { invoiceNo: "INV-004", customer: "ABC Pvt Ltd", date: "2026-06-05", dueDate: "2026-06-19", amount: 25000, status: "Pending" },
-  ],
-  paymentsReceived: [
-    { date: "2026-06-01", customer: "ABC Pvt Ltd", invoiceNo: "INV-001", mode: "Bank Transfer", amount: 45000 },
-    { date: "2026-06-03", customer: "XYZ Solutions", invoiceNo: "INV-002", mode: "UPI", amount: 30000 },
-    { date: "2026-06-05", customer: "Raj Enterprises", invoiceNo: "INV-0008", mode: "Cheque", amount: 42000 },
   ],
   expenseDetails: [
     { expNo: "EXP-001", date: "2026-06-01", category: "Travel", customer: "ABC Pvt Ltd", amount: 5000, status: "Billable" },
@@ -156,12 +142,14 @@ const REPORT_CATEGORIES = [
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function fmt(n) { return `₹${Number(n).toLocaleString("en-IN")}`; }
+function fmt(n) { return `₹${Number(n || 0).toLocaleString("en-IN")}`; }
 
 function StatusBadge({ status }) {
   const map = {
-    Paid: "#34a853", Overdue: "#ea4335", Pending: "#fbbc04",
-    Billable: "#1a73e8", "Non Billable": "#fbbc04", Invoiced: "#34a853",
+    Paid: "#34a853", Overdue: "#ea4335", Pending: "#fbbc04", Sent: "#1a73e8",
+    Draft: "#888", Unpaid: "#fbbc04", "Partially Paid": "#1a73e8", Cancelled: "#888",
+    Accepted: "#34a853", Rejected: "#ea4335", Expired: "#fbbc04", Invoiced: "#34a853",
+    Billable: "#1a73e8", "Non Billable": "#fbbc04",
     Active: "#34a853", Completed: "#888",
   };
   const c = map[status] || "#888";
@@ -205,16 +193,35 @@ function Table({ columns, rows }) {
 }
 
 // ─── Report Views ─────────────────────────────────────────────────────────────
-function ReportView({ reportId, onBack, dateRange }) {
+function ReportView({ reportId, onBack }) {
+  const [liveData, setLiveData] = useState([]);
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState("");
+
+  const apiPath = API_REPORT_MAP[reportId];
+
+  useEffect(() => {
+    if (!apiPath) return; // not connected — uses MOCK_DATA / coming soon
+    let active = true;
+    setLoading(true);
+    setError("");
+    API.get(apiPath)
+      .then((res) => { if (active) setLiveData(res.data.data || []); })
+      .catch(() => { if (active) setError("Report data load cheyyaledu. Backend running unnada check cheyyandi."); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [reportId]);
+
   const views = {
+    // ✅ CONNECTED TO BACKEND
     salesByCustomer: () => (
       <>
         <div style={{ display: "flex", gap: 14, marginBottom: 20, flexWrap: "wrap" }}>
           {[
-            { label: "Total Revenue", val: fmt(MOCK_DATA.salesByCustomer.reduce((s, r) => s + r.amount, 0)) },
-            { label: "Total Paid", val: fmt(MOCK_DATA.salesByCustomer.reduce((s, r) => s + r.paid, 0)), color: "#34a853" },
-            { label: "Outstanding", val: fmt(MOCK_DATA.salesByCustomer.reduce((s, r) => s + r.outstanding, 0)), color: "#ea4335" },
-            { label: "Customers", val: MOCK_DATA.salesByCustomer.length },
+            { label: "Total Revenue", val: fmt(liveData.reduce((s, r) => s + r.amount, 0)) },
+            { label: "Total Paid", val: fmt(liveData.reduce((s, r) => s + r.paid, 0)), color: "#34a853" },
+            { label: "Outstanding", val: fmt(liveData.reduce((s, r) => s + r.outstanding, 0)), color: "#ea4335" },
+            { label: "Customers", val: liveData.length },
           ].map(s => (
             <div key={s.label} style={{ flex: 1, minWidth: 140, background: "#f7f8fc", borderRadius: 8, padding: "14px 18px" }}>
               <div style={{ fontSize: 12, color: "#888" }}>{s.label}</div>
@@ -230,10 +237,11 @@ function ReportView({ reportId, onBack, dateRange }) {
             { key: "paid", label: "Paid", currency: true },
             { key: "outstanding", label: "Outstanding", currency: true },
           ]}
-          rows={MOCK_DATA.salesByCustomer}
+          rows={liveData}
         />
       </>
     ),
+
     salesByItem: () => (
       <Table
         columns={[
@@ -242,20 +250,56 @@ function ReportView({ reportId, onBack, dateRange }) {
           { key: "amount", label: "Total Amount", currency: true, bold: true },
           { key: "avgPrice", label: "Avg Price", currency: true },
         ]}
-        rows={MOCK_DATA.salesByItem}
+        rows={liveData}
       />
     ),
-    salesBySalesPerson: () => (
+
+    invoiceDetails: () => (
       <Table
         columns={[
-          { key: "person", label: "Sales Person", mono: true },
-          { key: "invoices", label: "Invoices", bold: true },
-          { key: "amount", label: "Revenue", currency: true, bold: true },
-          { key: "commission", label: "Commission (5%)", currency: true },
+          { key: "invoiceNo", label: "Invoice No", mono: true },
+          { key: "customer", label: "Customer" },
+          { key: "date", label: "Date" },
+          { key: "dueDate", label: "Due Date" },
+          { key: "amount", label: "Amount", currency: true, bold: true },
+          { key: "status", label: "Status", badge: true },
         ]}
-        rows={MOCK_DATA.salesBySalesPerson}
+        rows={liveData}
       />
     ),
+
+    quoteDetails: () => (
+      <Table
+        columns={[
+          { key: "quoteNo", label: "Quote No", mono: true },
+          { key: "customer", label: "Customer" },
+          { key: "date", label: "Date" },
+          { key: "expiryDate", label: "Expiry Date" },
+          { key: "amount", label: "Amount", currency: true, bold: true },
+          { key: "status", label: "Status", badge: true },
+        ]}
+        rows={liveData}
+      />
+    ),
+
+    paymentsReceived: () => (
+      <>
+        <div style={{ marginBottom: 14, padding: "12px 16px", background: "#e8f5e9", borderRadius: 8, fontSize: 14, fontWeight: 600, color: "#34a853" }}>
+          Total Collected: {fmt(liveData.reduce((s, r) => s + r.amount, 0))}
+        </div>
+        <Table
+          columns={[
+            { key: "date", label: "Date" },
+            { key: "customer", label: "Customer", mono: true },
+            { key: "invoiceNo", label: "Invoice No" },
+            { key: "mode", label: "Payment Mode" },
+            { key: "amount", label: "Amount", currency: true, bold: true },
+          ]}
+          rows={liveData}
+        />
+      </>
+    ),
+
     arAgingSummary: () => (
       <>
         <div style={{ marginBottom: 14, padding: "10px 16px", background: "#fff3cd", borderRadius: 8, fontSize: 13, color: "#856404" }}>
@@ -270,39 +314,34 @@ function ReportView({ reportId, onBack, dateRange }) {
             { key: "days90", label: "61-90 Days", currency: true },
             { key: "total", label: "Total Due", currency: true, bold: true },
           ]}
-          rows={MOCK_DATA.arAgingSummary}
+          rows={liveData}
         />
       </>
     ),
-    invoiceDetails: () => (
+
+    customerBalanceSummary: () => (
       <Table
         columns={[
-          { key: "invoiceNo", label: "Invoice No", mono: true },
+          { key: "customerId", label: "Customer ID", mono: true },
           { key: "customer", label: "Customer" },
-          { key: "date", label: "Date" },
-          { key: "dueDate", label: "Due Date" },
-          { key: "amount", label: "Amount", currency: true, bold: true },
-          { key: "status", label: "Status", badge: true },
+          { key: "outstanding", label: "Outstanding", currency: true, bold: true },
+          { key: "totalPayments", label: "Total Payments", currency: true },
         ]}
-        rows={MOCK_DATA.invoiceDetails}
+        rows={liveData}
       />
     ),
-    paymentsReceived: () => (
-      <>
-        <div style={{ marginBottom: 14, padding: "12px 16px", background: "#e8f5e9", borderRadius: 8, fontSize: 14, fontWeight: 600, color: "#34a853" }}>
-          Total Collected: {fmt(MOCK_DATA.paymentsReceived.reduce((s, r) => s + r.amount, 0))}
-        </div>
-        <Table
-          columns={[
-            { key: "date", label: "Date" },
-            { key: "customer", label: "Customer", mono: true },
-            { key: "invoiceNo", label: "Invoice No" },
-            { key: "mode", label: "Payment Mode" },
-            { key: "amount", label: "Amount", currency: true, bold: true },
-          ]}
-          rows={MOCK_DATA.paymentsReceived}
-        />
-      </>
+
+    // ── Below: still MOCK_DATA (backend table not built yet) ──
+    salesBySalesPerson: () => (
+      <Table
+        columns={[
+          { key: "person", label: "Sales Person", mono: true },
+          { key: "invoices", label: "Invoices", bold: true },
+          { key: "amount", label: "Revenue", currency: true, bold: true },
+          { key: "commission", label: "Commission (5%)", currency: true },
+        ]}
+        rows={MOCK_DATA.salesBySalesPerson}
+      />
     ),
     expenseDetails: () => (
       <Table
@@ -466,7 +505,15 @@ function ReportView({ reportId, onBack, dateRange }) {
         background: "#fff", borderRadius: 12, padding: "20px 24px",
         boxShadow: "0 1px 6px rgba(0,0,0,0.07)"
       }}>
-        {ViewComp ? <ViewComp /> : (
+        {apiPath && loading ? (
+          <div style={{ textAlign: "center", padding: "60px 20px", color: "#bbb" }}>
+            <div style={{ fontSize: 14 }}>Loading report...</div>
+          </div>
+        ) : apiPath && error ? (
+          <div style={{ textAlign: "center", padding: "60px 20px", color: "#ea4335" }}>
+            <div style={{ fontSize: 14 }}>{error}</div>
+          </div>
+        ) : ViewComp ? <ViewComp /> : (
           <div style={{ textAlign: "center", padding: "60px 20px", color: "#bbb" }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>📊</div>
             <div style={{ fontSize: 16, fontWeight: 600 }}>Report data coming soon</div>
@@ -527,7 +574,6 @@ export default function Reports() {
         padding: "48px 0 36px",
         position: "relative", overflow: "hidden"
       }}>
-        {/* decorative bg icons */}
         {["📊", "📋", "💳", "🧾", "⏱️", "📈", "🏛️", "📝"].map((ic, i) => (
           <span key={i} style={{
             position: "absolute", fontSize: 60, opacity: 0.05,
@@ -606,7 +652,6 @@ export default function Reports() {
                   borderTop: i > 0 ? "1px solid #f0f0f0" : "none",
                   padding: "0"
                 }}>
-                  {/* Left half — report link */}
                   <div
                     onClick={() => setActiveReport(r.id)}
                     style={{
@@ -623,7 +668,6 @@ export default function Reports() {
                     </div>
                   </div>
 
-                  {/* Star */}
                   <button
                     onClick={e => toggleFav(r.id, e)}
                     title={favorites.has(r.id) ? "Remove from favorites" : "Add to favorites"}

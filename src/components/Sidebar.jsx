@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import PeopleIcon from "@mui/icons-material/People";
 import InventoryIcon from "@mui/icons-material/Inventory";
@@ -8,8 +9,11 @@ import AutorenewIcon from "@mui/icons-material/Autorenew";
 import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import AssessmentIcon from "@mui/icons-material/Assessment";
+import LogoutIcon from "@mui/icons-material/Logout";
 
-const Sidebar = ({ setPage }) => {
+const Sidebar = ({ setPage, activePage }) => {
+  const navigate = useNavigate();
+
   const menuItems = [
     { name: "Dashboard", icon: <DashboardIcon /> },
     { name: "Customers", icon: <PeopleIcon /> },
@@ -22,6 +26,11 @@ const Sidebar = ({ setPage }) => {
     { name: "Time Tracking", icon: <AccessTimeIcon /> },
     { name: "Reports", icon: <AssessmentIcon /> },
   ];
+
+  const handleLogout = () => {
+    localStorage.removeItem("vjc_invoice_auth");
+    navigate("/login");
+  };
 
   return (
     <div
@@ -37,6 +46,8 @@ const Sidebar = ({ setPage }) => {
         bottom: 0,
         zIndex: 1000,
         overflowY: "auto",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
       <h2
@@ -49,34 +60,72 @@ const Sidebar = ({ setPage }) => {
         VJC Invoice
       </h2>
 
-      {menuItems.map((item, index) => (
-        <div
-          key={item.name}
-          onClick={() => setPage(item.name)}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "14px",
-            padding: "14px",
-            marginBottom: "10px",
-            borderRadius: "10px",
-            cursor: "pointer",
-            transition: "0.3s",
-            background: index === 0 ? "#2563eb" : "transparent",
-          }}
-        >
-          {item.icon}
-
-          <span
+      <div style={{ flex: 1 }}>
+        {menuItems.map((item, index) => (
+          <div
+            key={item.name}
+            onClick={() => setPage(item.name)}
             style={{
-              fontSize: "18px",
-              whiteSpace: "nowrap",
+              display: "flex",
+              alignItems: "center",
+              gap: "14px",
+              padding: "14px",
+              marginBottom: "10px",
+              borderRadius: "10px",
+              cursor: "pointer",
+              transition: "0.3s",
+              background:
+                activePage === item.name
+                  ? "#2563eb"
+                  : index === 0 && !activePage
+                  ? "#2563eb"
+                  : "transparent",
+            }}
+            onMouseEnter={(e) => {
+              if (activePage !== item.name) {
+                e.currentTarget.style.background = "rgba(255,255,255,0.07)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (activePage !== item.name) {
+                e.currentTarget.style.background = "transparent";
+              }
             }}
           >
-            {item.name}
-          </span>
-        </div>
-      ))}
+            {item.icon}
+            <span style={{ fontSize: "18px", whiteSpace: "nowrap" }}>
+              {item.name}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Logout Button - bottom lo */}
+      <div
+        onClick={handleLogout}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "14px",
+          padding: "14px",
+          marginTop: "10px",
+          borderRadius: "10px",
+          cursor: "pointer",
+          background: "rgba(239,68,68,0.12)",
+          border: "1px solid rgba(239,68,68,0.25)",
+          color: "#f87171",
+          transition: "0.3s",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = "rgba(239,68,68,0.22)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = "rgba(239,68,68,0.12)";
+        }}
+      >
+        <LogoutIcon />
+        <span style={{ fontSize: "18px", whiteSpace: "nowrap" }}>Logout</span>
+      </div>
     </div>
   );
 };

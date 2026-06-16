@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import axios from "axios";
 
 import {
   Box,
@@ -21,11 +22,14 @@ import {
   DialogActions,
   MenuItem,
   Chip,
-  Switch,
-  FormControlLabel,
+  CircularProgress,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 
-// ✅ Price ko Indian format maa cheyyadam: 150000 → ₹1,50,000
+const API_BASE = "http://localhost:5000/api/items";
+
+// ✅ Indian currency format
 const formatPrice = (value) => {
   if (!value) return "₹0";
   return Number(value).toLocaleString("en-IN", {
@@ -35,7 +39,7 @@ const formatPrice = (value) => {
   });
 };
 
-// ✅ GST amount calculate cheyyadam
+// ✅ GST calculate
 const calcGST = (price, gstPercent) => {
   const p = parseFloat(price) || 0;
   const g = parseFloat(gstPercent) || 0;
@@ -43,55 +47,22 @@ const calcGST = (price, gstPercent) => {
 };
 
 function Items() {
-  const [open, setOpen] = useState(false);
+  const [items, setItems] = useState([]);
+  const [stats, setStats] = useState({ total_items: 0, active_items: 0, total_revenue: 0 });
+  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [errors, setErrors] = useState({});
 
+  // Snackbar
+  const [snack, setSnack] = useState({ open: false, message: "", severity: "success" });
+  const showSnack = (message, severity = "success") => setSnack({ open: true, message, severity });
+
+  // Dialogs
+  const [open, setOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
-
-  // ✅ Edit state
   const [editOpen, setEditOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
-
-  const [items, setItems] = useState([
-    {
-      id: 1,
-      serviceName: "Canada Study Visa",
-      category: "Study Visa",
-      country: "Canada",
-      price: "150000",
-      gst: "18",
-      duration: "6 Months",
-      documents: "Passport, Bank Statement, Offer Letter",
-      description: "Complete study visa processing for Canada",
-      status: "Active",
-    },
-    {
-      id: 2,
-      serviceName: "Australia PR",
-      category: "PR Visa",
-      country: "Australia",
-      price: "250000",
-      gst: "18",
-      duration: "12 Months",
-      documents: "Passport, Work Experience, IELTS Score",
-      description: "Permanent Residency application for Australia",
-      status: "Active",
-    },
-    {
-      id: 3,
-      serviceName: "UK Tourist Visa",
-      category: "Tourist Visa",
-      country: "United Kingdom",
-      price: "65000",
-      gst: "18",
-      duration: "2 Months",
-      documents: "Passport, Bank Statement, Hotel Booking",
-      description: "Tourist visa processing for United Kingdom",
-      status: "Inactive",
-    },
-  ]);
 
   const emptyForm = {
     serviceName: "",
@@ -107,84 +78,130 @@ function Items() {
 
   const [newItem, setNewItem] = useState(emptyForm);
 
+  // ✅ Fetch items from backend
+  const fetchItems = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get(API_BASE, {
+        params: { search: search || undefined },
+      });
+      if (res.data.success) {
+        setItems(res.data.items || []);
+        setStats(res.data.stats || {});
+      }
+    } catch (err) {
+      showSnack("Items load cheyyadam fail aindhi!", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Search change ayyappudu refetch
+  useEffect(() => {
+    const timer = setTimeout(() => fetchItems(), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   // ✅ Validation
   const validate = (item) => {
     const e = {};
-    if (!item.serviceName.trim()) e.serviceName = "Service name required";
+    if (!item.serviceName?.trim()) e.serviceName = "Service name required";
     if (!item.category) e.category = "Category required";
-    if (!item.country.trim()) e.country = "Country required";
+    if (!item.country?.trim()) e.country = "Country required";
     if (!item.price || isNaN(item.price) || Number(item.price) <= 0)
       e.price = "Valid price required";
     return e;
   };
 
-  const handleAddItem = () => {
+  // ✅ camelCase → snake_case convert for backend
+  const toBackend = (item) => ({
+    service_name: item.serviceName || item.service_name,
+    category: item.category,
+    country: item.country,
+    price: item.price,
+    gst: item.gst,
+    duration: item.duration,
+    documents: item.documents,
+    description: item.description,
+    status: item.status,
+  });
+
+  // ✅ Add item → POST
+  const handleAddItem = async () => {
     const e = validate(newItem);
-    if (Object.keys(e).length > 0) {
-      setErrors(e);
-      return;
+    if (Object.keys(e).length > 0) { setErrors(e); return; }
+
+    try {
+      const res = await axios.post(API_BASE, toBackend(newItem));
+      if (res.data.success) {
+        showSnack("Service successfully add aindhi! ✅");
+        setNewItem(emptyForm);
+        setErrors({});
+        setOpen(false);
+        fetchItems();
+      }
+    } catch (err) {
+      showSnack(err.response?.data?.message || "Add cheyyadam fail aindhi!", "error");
     }
-    setItems([...items, { id: Date.now(), ...newItem }]);
-    setNewItem(emptyForm);
-    setErrors({});
-    setOpen(false);
   };
 
-  // ✅ Edit save
-  const handleEditSave = () => {
+  // ✅ Edit save → PUT
+  const handleEditSave = async () => {
     const e = validate(editItem);
-    if (Object.keys(e).length > 0) {
-      setErrors(e);
-      return;
+    if (Object.keys(e).length > 0) { setErrors(e); return; }
+
+    try {
+      const res = await axios.put(`${API_BASE}/${editItem.id}`, toBackend(editItem));
+      if (res.data.success) {
+        showSnack("Service update aindhi! ✅");
+        setErrors({});
+        setEditOpen(false);
+        setEditItem(null);
+        fetchItems();
+      }
+    } catch (err) {
+      showSnack(err.response?.data?.message || "Update fail aindhi!", "error");
     }
-    setItems(items.map((i) => (i.id === editItem.id ? editItem : i)));
-    setErrors({});
-    setEditOpen(false);
-    setEditItem(null);
   };
 
-  const handleDelete = (id) => {
-    setItems(items.filter((item) => item.id !== id));
+  // ✅ Delete → DELETE
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete cheyyadam confirm na?")) return;
+    try {
+      const res = await axios.delete(`${API_BASE}/${id}`);
+      if (res.data.success) {
+        showSnack("Service delete aindhi! 🗑️");
+        fetchItems();
+      }
+    } catch (err) {
+      showSnack("Delete fail aindhi!", "error");
+    }
   };
 
-  // ✅ Status toggle directly from table
-  const handleStatusToggle = (id) => {
-    setItems(
-      items.map((item) =>
-        item.id === id
-          ? { ...item, status: item.status === "Active" ? "Inactive" : "Active" }
-          : item
-      )
-    );
+  // ✅ Status toggle → PUT
+  const handleStatusToggle = async (item) => {
+    const newStatus = item.status === "Active" ? "Inactive" : "Active";
+    try {
+      await axios.put(`${API_BASE}/${item.id}`, toBackend({ ...item, status: newStatus }));
+      fetchItems();
+    } catch (err) {
+      showSnack("Status update fail aindhi!", "error");
+    }
   };
 
-  const filteredItems = items.filter((item) =>
-    item.serviceName.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const activeCount = items.filter((i) => i.status === "Active").length;
-
-  // ✅ Reusable form fields (used in both Add & Edit dialogs)
+  // ✅ Reusable form fields
   const renderFormFields = (formData, setFormData) => (
     <>
       <TextField
-        fullWidth
-        margin="normal"
-        label="Service Name *"
+        fullWidth margin="normal" label="Service Name *"
         value={formData.serviceName}
-        error={!!errors.serviceName}
-        helperText={errors.serviceName}
+        error={!!errors.serviceName} helperText={errors.serviceName}
         onChange={(e) => setFormData({ ...formData, serviceName: e.target.value })}
       />
-
       <TextField
-        select
-        fullWidth
-        margin="normal"
-        label="Category *"
+        select fullWidth margin="normal" label="Category *"
         value={formData.category}
-        error={!!errors.category}
-        helperText={errors.category}
+        error={!!errors.category} helperText={errors.category}
         onChange={(e) => setFormData({ ...formData, category: e.target.value })}
       >
         <MenuItem value="Study Visa">Study Visa</MenuItem>
@@ -196,22 +213,16 @@ function Items() {
       </TextField>
 
       <TextField
-        fullWidth
-        margin="normal"
-        label="Country *"
+        fullWidth margin="normal" label="Country *"
         value={formData.country}
-        error={!!errors.country}
-        helperText={errors.country}
+        error={!!errors.country} helperText={errors.country}
         onChange={(e) => setFormData({ ...formData, country: e.target.value })}
       />
 
-      {/* ✅ Price + GST side by side */}
       <Grid container spacing={2}>
         <Grid item xs={6}>
           <TextField
-            fullWidth
-            margin="normal"
-            label="Price (₹) *"
+            fullWidth margin="normal" label="Price (₹) *"
             value={formData.price}
             error={!!errors.price}
             helperText={errors.price || (formData.price ? `GST: ₹${calcGST(formData.price, formData.gst).toLocaleString("en-IN")}` : "")}
@@ -220,10 +231,7 @@ function Items() {
         </Grid>
         <Grid item xs={6}>
           <TextField
-            select
-            fullWidth
-            margin="normal"
-            label="GST %"
+            select fullWidth margin="normal" label="GST %"
             value={formData.gst}
             onChange={(e) => setFormData({ ...formData, gst: e.target.value })}
           >
@@ -236,11 +244,10 @@ function Items() {
         </Grid>
       </Grid>
 
-      {/* ✅ Total amount preview */}
       {formData.price && Number(formData.price) > 0 && (
         <Box sx={{ bgcolor: "#f0f7ff", p: 1.5, borderRadius: 1, mt: 0.5, mb: 1 }}>
           <Typography variant="body2" color="text.secondary">
-            Base Price: {formatPrice(formData.price)} &nbsp;+&nbsp;
+            Base: {formatPrice(formData.price)} &nbsp;+&nbsp;
             GST ({formData.gst}%): ₹{calcGST(formData.price, formData.gst).toLocaleString("en-IN")} &nbsp;=&nbsp;
             <strong>Total: {formatPrice(Number(formData.price) + calcGST(formData.price, formData.gst))}</strong>
           </Typography>
@@ -248,38 +255,22 @@ function Items() {
       )}
 
       <TextField
-        fullWidth
-        margin="normal"
-        label="Duration (e.g. 3 Months)"
+        fullWidth margin="normal" label="Duration (e.g. 3 Months)"
         value={formData.duration}
         onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
       />
-
       <TextField
-        fullWidth
-        multiline
-        rows={2}
-        margin="normal"
-        label="Required Documents"
+        fullWidth multiline rows={2} margin="normal" label="Required Documents"
         value={formData.documents}
         onChange={(e) => setFormData({ ...formData, documents: e.target.value })}
       />
-
       <TextField
-        fullWidth
-        multiline
-        rows={2}
-        margin="normal"
-        label="Description"
+        fullWidth multiline rows={2} margin="normal" label="Description"
         value={formData.description}
         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
       />
-
       <TextField
-        select
-        fullWidth
-        margin="normal"
-        label="Status"
+        select fullWidth margin="normal" label="Status"
         value={formData.status}
         onChange={(e) => setFormData({ ...formData, status: e.target.value })}
       >
@@ -295,26 +286,24 @@ function Items() {
         Services / Items
       </Typography>
 
-      {/* ✅ Stats Cards */}
+      {/* ✅ Stats Cards — backend stats use chestundi */}
       <Grid container spacing={3}>
         <Grid item xs={12} md={3}>
           <Card sx={{ borderLeft: "4px solid #1976d2" }}>
             <CardContent>
               <Typography color="text.secondary">Total Services</Typography>
-              <Typography variant="h5" fontWeight="bold">{items.length}</Typography>
+              <Typography variant="h5" fontWeight="bold">{stats.total_items || items.length}</Typography>
             </CardContent>
           </Card>
         </Grid>
-
         <Grid item xs={12} md={3}>
           <Card sx={{ borderLeft: "4px solid #2e7d32" }}>
             <CardContent>
               <Typography color="text.secondary">Active Services</Typography>
-              <Typography variant="h5" fontWeight="bold">{activeCount}</Typography>
+              <Typography variant="h5" fontWeight="bold">{stats.active_items || 0}</Typography>
             </CardContent>
           </Card>
         </Grid>
-
         <Grid item xs={12} md={3}>
           <Card sx={{ borderLeft: "4px solid #ed6c02" }}>
             <CardContent>
@@ -323,18 +312,19 @@ function Items() {
             </CardContent>
           </Card>
         </Grid>
-
         <Grid item xs={12} md={3}>
           <Card sx={{ borderLeft: "4px solid #9c27b0" }}>
             <CardContent>
               <Typography color="text.secondary">Revenue</Typography>
-              <Typography variant="h5" fontWeight="bold">₹25,00,000</Typography>
+              <Typography variant="h5" fontWeight="bold">
+                {stats.total_revenue ? formatPrice(stats.total_revenue) : "₹0"}
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
 
-      {/* ✅ Search + Add Button */}
+      {/* ✅ Search + Add */}
       <Box sx={{ display: "flex", justifyContent: "space-between", my: 4 }}>
         <TextField
           label="Search Service"
@@ -349,83 +339,84 @@ function Items() {
       </Box>
 
       {/* ✅ Table */}
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead sx={{ bgcolor: "#f5f5f5" }}>
-            <TableRow>
-              <TableCell><strong>Service</strong></TableCell>
-              <TableCell><strong>Category</strong></TableCell>
-              <TableCell><strong>Country</strong></TableCell>
-              <TableCell><strong>Price</strong></TableCell>
-              <TableCell><strong>GST</strong></TableCell>
-              <TableCell><strong>Total</strong></TableCell>
-              <TableCell><strong>Status</strong></TableCell>
-              <TableCell><strong>Actions</strong></TableCell>
-            </TableRow>
-          </TableHead>
-
-          <TableBody>
-            {filteredItems.map((item) => (
-              <TableRow key={item.id} hover>
-                <TableCell>{item.serviceName}</TableCell>
-                <TableCell>{item.category}</TableCell>
-                <TableCell>{item.country}</TableCell>
-                <TableCell>{formatPrice(item.price)}</TableCell>
-                <TableCell>{item.gst || 18}%</TableCell>
-                <TableCell>
-                  {formatPrice(Number(item.price) + calcGST(item.price, item.gst || 18))}
-                </TableCell>
-                <TableCell>
-                  {/* ✅ Clickable status chip to toggle */}
-                  <Chip
-                    label={item.status}
-                    color={item.status === "Active" ? "success" : "default"}
-                    size="small"
-                    onClick={() => handleStatusToggle(item.id)}
-                    sx={{ cursor: "pointer" }}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Button
-                    size="small"
-                    onClick={() => { setSelectedItem(item); setViewOpen(true); }}
-                  >
-                    View
-                  </Button>
-
-                  {/* ✅ Edit button now works */}
-                  <Button
-                    size="small"
-                    color="primary"
-                    onClick={() => {
-                      setEditItem({ ...item });
-                      setErrors({});
-                      setEditOpen(true);
-                    }}
-                  >
-                    Edit
-                  </Button>
-
-                  <Button
-                    size="small"
-                    color="error"
-                    onClick={() => handleDelete(item.id)}
-                  >
-                    Delete
-                  </Button>
-                </TableCell>
+      {loading ? (
+        <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead sx={{ bgcolor: "#f5f5f5" }}>
+              <TableRow>
+                <TableCell><strong>Service</strong></TableCell>
+                <TableCell><strong>Category</strong></TableCell>
+                <TableCell><strong>Country</strong></TableCell>
+                <TableCell><strong>Price</strong></TableCell>
+                <TableCell><strong>GST</strong></TableCell>
+                <TableCell><strong>Total</strong></TableCell>
+                <TableCell><strong>Status</strong></TableCell>
+                <TableCell><strong>Actions</strong></TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            </TableHead>
+            <TableBody>
+              {items.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} align="center" sx={{ py: 4, color: "text.secondary" }}>
+                    No services found. "+ Add Service" button tho add cheyyi!
+                  </TableCell>
+                </TableRow>
+              ) : (
+                items.map((item) => (
+                  <TableRow key={item.id} hover>
+                    <TableCell>{item.service_name || item.serviceName}</TableCell>
+                    <TableCell>{item.category}</TableCell>
+                    <TableCell>{item.country}</TableCell>
+                    <TableCell>{formatPrice(item.price)}</TableCell>
+                    <TableCell>{item.gst || 18}%</TableCell>
+                    <TableCell>
+                      {formatPrice(Number(item.price) + calcGST(item.price, item.gst || 18))}
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={item.status}
+                        color={item.status === "Active" ? "success" : "default"}
+                        size="small"
+                        onClick={() => handleStatusToggle(item)}
+                        sx={{ cursor: "pointer" }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Button size="small" onClick={() => { setSelectedItem(item); setViewOpen(true); }}>
+                        View
+                      </Button>
+                      <Button size="small" color="primary"
+                        onClick={() => {
+                          setEditItem({
+                            ...item,
+                            serviceName: item.service_name || item.serviceName,
+                          });
+                          setErrors({});
+                          setEditOpen(true);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <Button size="small" color="error" onClick={() => handleDelete(item.id)}>
+                        Delete
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
 
       {/* ✅ ADD Dialog */}
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>Add New Service</DialogTitle>
-        <DialogContent>
-          {renderFormFields(newItem, setNewItem)}
-        </DialogContent>
+        <DialogContent>{renderFormFields(newItem, setNewItem)}</DialogContent>
         <DialogActions>
           <Button onClick={() => { setOpen(false); setErrors({}); }}>Cancel</Button>
           <Button variant="contained" onClick={handleAddItem}>Save Service</Button>
@@ -444,14 +435,14 @@ function Items() {
         </DialogActions>
       </Dialog>
 
-      {/* ✅ VIEW Dialog — full details */}
+      {/* ✅ VIEW Dialog */}
       <Dialog open={viewOpen} onClose={() => setViewOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Service Details</DialogTitle>
         <DialogContent>
           {selectedItem && (
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, mt: 1 }}>
               {[
-                ["Service Name", selectedItem.serviceName],
+                ["Service Name", selectedItem.service_name || selectedItem.serviceName],
                 ["Category", selectedItem.category],
                 ["Country", selectedItem.country],
                 ["Base Price", formatPrice(selectedItem.price)],
@@ -474,6 +465,18 @@ function Items() {
           <Button onClick={() => setViewOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
+
+      {/* ✅ Snackbar notifications */}
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={3000}
+        onClose={() => setSnack({ ...snack, open: false })}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        <Alert severity={snack.severity} onClose={() => setSnack({ ...snack, open: false })}>
+          {snack.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

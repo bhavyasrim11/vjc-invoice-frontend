@@ -1,3 +1,5 @@
+import { useState, useEffect } from "react";
+import axios from "axios";
 import SalesChart from "./SalesChart";
 import RecentInvoices from "../components/RecentInvoices";
 import Footer from "../components/Footer";
@@ -7,27 +9,68 @@ import {
   CardContent,
   Typography,
   Box,
+  CircularProgress,
 } from "@mui/material";
 
+const API = axios.create({ baseURL: "http://localhost:5000/api" });
+
+const fmt = (n) => "₹" + Number(n || 0).toLocaleString("en-IN");
+
 function Dashboard() {
+  const [kpis, setKpis] = useState({
+    totalCustomers: 0,
+    totalInvoices: 0,
+    paymentsReceived: 0,
+    pendingAmount: 0,
+  });
+  const [chartData, setChartData] = useState(null);
+  const [recentInvoices, setRecentInvoices] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchAll();
+  }, []);
+
+  const fetchAll = async () => {
+  setLoading(true);
+
+  try {
+    const kpiRes = await API.get("/dashboard/kpis");
+    setKpis(kpiRes.data.data);
+  } catch (err) {
+    console.log("KPI Error", err);
+  }
+
+  try {
+    const chartRes = await API.get("/dashboard/sales-overview");
+    setChartData(chartRes.data.data);
+  } catch (err) {
+    console.log("Chart Error", err);
+  }
+
+  try {
+    const invRes = await API.get("/dashboard/recent-invoices");
+    setRecentInvoices(invRes.data.data || []);
+  } catch (err) {
+    console.log("Invoice Error", err);
+  }
+
+  setLoading(false);
+};
   const cards = [
-    {
-      title: "Total Customers",
-      value: "120",
-    },
-    {
-      title: "Total Invoices",
-      value: "350",
-    },
-    {
-      title: "Payments Received",
-      value: "₹8,50,000",
-    },
-    {
-      title: "Pending Amount",
-      value: "₹1,20,000",
-    },
+    { title: "Total Customers", value: kpis.totalCustomers },
+    { title: "Total Invoices", value: kpis.totalInvoices },
+    { title: "Payments Received", value: fmt(kpis.paymentsReceived) },
+    { title: "Pending Amount", value: fmt(kpis.pendingAmount) },
   ];
+
+  if (loading) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", mt: 8 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <div>
@@ -74,7 +117,7 @@ function Dashboard() {
               variant="h6"
               fontWeight="bold"
             >
-              ₹8,50,000
+              {fmt(kpis.paymentsReceived)}
             </Typography>
           </Grid>
 
@@ -90,7 +133,7 @@ function Dashboard() {
               variant="h6"
               fontWeight="bold"
             >
-              ₹1,20,000
+              {fmt(kpis.pendingAmount)}
             </Typography>
           </Grid>
 
@@ -106,7 +149,7 @@ function Dashboard() {
               variant="h6"
               fontWeight="bold"
             >
-              120
+              {kpis.totalCustomers}
             </Typography>
           </Grid>
         </Grid>
@@ -176,11 +219,11 @@ function Dashboard() {
       {/* Sales Chart */}
 
      <Box sx={{ mt: 5 }}>
-  <SalesChart />
+  <SalesChart data={chartData} />
 </Box>
 
 <Box sx={{ mt: 5 }}>
-  <RecentInvoices />
+  <RecentInvoices invoices={recentInvoices} />
 </Box>
 
 <Box sx={{ mt: 5 }}>

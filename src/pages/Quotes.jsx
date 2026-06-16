@@ -1,12 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import axios from "axios";
 import {
   Box, Typography, Grid, Card, CardContent, Button, TextField,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Paper, Dialog, DialogTitle, DialogContent, DialogActions,
-  MenuItem, Chip, Divider, IconButton,
+  MenuItem, Chip, Divider, IconButton, CircularProgress, Alert,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
+
+// ─── API Base ────────────────────────────────────────────────
+const API = axios.create({ baseURL: "http://localhost:5000/api" });
 
 // ─── Helpers ────────────────────────────────────────────────
 const formatPrice = (value) =>
@@ -22,9 +26,6 @@ const expiryDateCalc = () => {
   return d.toISOString().split("T")[0];
 };
 
-// ✅ Zoho Quote Life Cycle
-// QUOTE → SENT TO CUSTOMER → ACCEPT → INVOICE
-//                          ↘ REJECT
 const STATUS_COLOR = {
   Draft:    "default",
   Sent:     "primary",
@@ -43,20 +44,7 @@ const NEXT_STATUS = {
   Expired:  [],
 };
 
-// ─── Seed Data ──────────────────────────────────────────────
-const CUSTOMERS = [
-  { id: "CUS001", name: "Rahul Kumar",  company: "ABC Pvt Ltd",    email: "rahul@gmail.com" },
-  { id: "CUS002", name: "Priya Reddy",  company: "XYZ Solutions",  email: "priya@gmail.com" },
-  { id: "CUS003", name: "Vikram Singh", company: "Tech Corp",      email: "vikram@gmail.com" },
-];
-
 const SALESPERSONS = ["Ravi Kumar", "Sneha Reddy", "Arjun Sharma", "Deepika Nair"];
-
-const ITEMS_LIST = [
-  { id: 1, serviceName: "Canada Study Visa", price: "150000", gst: "18" },
-  { id: 2, serviceName: "Australia PR",       price: "250000", gst: "18" },
-  { id: 3, serviceName: "UK Tourist Visa",    price: "65000",  gst: "18" },
-];
 
 const emptyLineItem = () => ({
   _key: Date.now() + Math.random(),
@@ -70,56 +58,11 @@ const emptyLineItem = () => ({
 
 // ─── Component ──────────────────────────────────────────────
 function Quotes() {
-  const [quotes, setQuotes] = useState([
-    {
-      id: "QT-000001",
-      customerId: "CUS001",
-      customerName: "Rahul Kumar",
-      reference: "REF-001",
-      quoteDate: "2026-05-28",
-      expiryDate: "2026-06-28",
-      salesperson: "Ravi Kumar",
-      lineItems: [
-        { _key: 1, itemId: 1, description: "Canada Study Visa", qty: 1, rate: 150000, gst: 18, discount: 0 },
-      ],
-      notes: "Looking forward for your business.",
-      termsConditions: "Payment to be made within 30 days.",
-      status: "Accepted",
-      totalAmount: 177000,
-    },
-    {
-      id: "QT-000002",
-      customerId: "CUS002",
-      customerName: "Priya Reddy",
-      reference: "",
-      quoteDate: "2026-06-01",
-      expiryDate: "2026-07-01",
-      salesperson: "Sneha Reddy",
-      lineItems: [
-        { _key: 2, itemId: 2, description: "Australia PR", qty: 1, rate: 250000, gst: 18, discount: 0 },
-      ],
-      notes: "Looking forward for your business.",
-      termsConditions: "",
-      status: "Sent",
-      totalAmount: 295000,
-    },
-    {
-      id: "QT-000003",
-      customerId: "CUS003",
-      customerName: "Vikram Singh",
-      reference: "",
-      quoteDate: "2026-05-15",
-      expiryDate: "2026-06-15",
-      salesperson: "Arjun Sharma",
-      lineItems: [
-        { _key: 3, itemId: 3, description: "UK Tourist Visa", qty: 1, rate: 65000, gst: 18, discount: 5 },
-      ],
-      notes: "",
-      termsConditions: "",
-      status: "Rejected",
-      totalAmount: 73373,
-    },
-  ]);
+  const [quotes, setQuotes]       = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [itemsList, setItemsList] = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState("");
 
   // ── UI state ──
   const [open, setOpen]         = useState(false);
@@ -133,18 +76,47 @@ function Quotes() {
   const [statusChangeQt, setStatusChangeQt]     = useState(null);
   const [newStatus, setNewStatus]               = useState("");
 
-  const [form, setForm] = useState(null);
+  const [form, setForm]       = useState(null);
+  const [saving, setSaving]   = useState(false);
+
+  // ── Fetch all data on mount ──
+  useEffect(() => {
+    fetchAll();
+  }, []);
+
+  const fetchAll = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const [qRes, cRes, iRes] = await Promise.all([
+        API.get("/quotes"),
+        API.get("/customers"),
+        API.get("/items"),
+      ]);
+      setQuotes(qRes.data.data || []);
+      setCustomers(cRes.data.customers || []);
+      setItemsList(iRes.data.items || []);
+    } catch (err) {
+      setError("Data load cheyyaledu. Backend running unnada check cheyyandi.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // ── Auto Quote Number ──
   const nextQuoteNo = () => {
-    const nums = quotes.map((q) => parseInt(q.id.replace("QT-", ""), 10));
-    const max  = nums.length ? Math.max(...nums) : 0;
+    const nums = quotes.map((q) => {
+      const match = (q.quote_number || q.id || "").match(/(\d+)$/);
+      return match ? parseInt(match[1], 10) : 0;
+    });
+    const max = nums.length ? Math.max(...nums) : 0;
     return `QT-${String(max + 1).padStart(6, "0")}`;
   };
 
   const openNew = () => {
     setForm({
-      id: nextQuoteNo(),
+      id: null,
+      quote_number: nextQuoteNo(),
       customerId: "",
       customerName: "",
       reference: "",
@@ -167,11 +139,13 @@ function Quotes() {
         if (li._key !== key) return li;
         const updated = { ...li, [field]: value };
         if (field === "itemId") {
-          const found = ITEMS_LIST.find((i) => i.id === Number(value));
+          const found = itemsList.find(
+            (i) => String(i.id) === String(value)
+          );
           if (found) {
-            updated.description = found.serviceName;
-            updated.rate        = Number(found.price);
-            updated.gst         = Number(found.gst);
+            updated.description = found.service_name || "";
+            updated.rate        = Number(found.price || 0);
+            updated.gst         = Number(found.gst || 18);
           }
         }
         return updated;
@@ -195,74 +169,162 @@ function Quotes() {
     let subTotal = 0, totalGST = 0, grandTotal = 0;
     lineItems.forEach((li) => {
       const a = lineAmount(li);
-      subTotal  += a.taxable;
-      totalGST  += a.gstAmt;
+      subTotal   += a.taxable;
+      totalGST   += a.gstAmt;
       grandTotal += a.total;
     });
     return { subTotal, totalGST, grandTotal };
   };
 
-  // ── Save ──
-  const handleSave = (status) => {
-    if (!form.customerId || form.lineItems.every((l) => !l.itemId && !l.description)) return;
-    const { grandTotal } = totals(form.lineItems);
-    const quote = { ...form, status, totalAmount: grandTotal };
+  // ── Normalize quote from API response ──
+  const normalizeQuote = (q) => ({
+    id:               q.id || q.quote_id,
+    quote_number:     q.quote_number || q.id,
+    customerId:       q.customer_id || q.customerId,
+    customerName:     q.customer_name || q.customerName || "",
+    reference:        q.reference || "",
+    quoteDate:        (q.quote_date || q.quoteDate || "").slice(0, 10),
+    expiryDate:       (q.expiry_date || q.expiryDate || "").slice(0, 10),
+    salesperson:      q.salesperson || "",
+    lineItems:        (q.line_items || q.lineItems || []).map((li, idx) => ({
+      _key:        li._key || li.id || idx,
+      itemId:      li.item_id || li.itemId || "",
+      description: li.description || "",
+      qty:         Number(li.qty || li.quantity || 1),
+      rate:        Number(li.rate || li.unit_price || 0),
+      gst:         Number(li.gst || li.tax_rate || 18),
+      discount:    Number(li.discount || 0),
+    })),
+    notes:            q.notes || "",
+    termsConditions:  q.terms_conditions || q.termsConditions || "",
+    status:           q.status || "Draft",
+    totalAmount:      Number(q.total_amount || q.totalAmount || 0),
+  });
 
-    setQuotes((prev) => {
-      const exists = prev.find((q) => q.id === quote.id);
-      return exists
-        ? prev.map((q) => (q.id === quote.id ? quote : q))
-        : [...prev, quote];
-    });
-    setOpen(false);
+  // ── Save (Create / Update) ──
+  const handleSave = async (status) => {
+    if (!form.customerId || form.lineItems.every((l) => !l.itemId && !l.description)) return;
+    setSaving(true);
+    const { grandTotal } = totals(form.lineItems);
+
+    const payload = {
+      quote_number:      form.quote_number,
+      customer_id:       form.customerId,
+      customer_name:     form.customerName,
+      reference:         form.reference,
+      quote_date:        form.quoteDate,
+      expiry_date:       form.expiryDate,
+      salesperson:       form.salesperson,
+      notes:             form.notes,
+      terms_conditions:  form.termsConditions,
+      status:            status,
+      total_amount:      grandTotal,
+      line_items:        form.lineItems.map((li) => ({
+        item_id:     li.itemId,
+        description: li.description,
+        qty:         li.qty,
+        rate:        li.rate,
+        gst:         li.gst,
+        discount:    li.discount,
+      })),
+    };
+
+    try {
+      if (form.id) {
+        // Update
+        await API.put(`/quotes/${form.id}`, payload);
+      } else {
+        // Create
+        await API.post("/quotes", payload);
+      }
+      await fetchAll();
+      setOpen(false);
+    } catch (err) {
+      setError("Quote save cheyyaledu. Try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   // ── Status change ──
-  const handleStatusChange = () => {
+  const handleStatusChange = async () => {
     if (!newStatus) return;
-    setQuotes((prev) =>
-      prev.map((q) => (q.id === statusChangeQt.id ? { ...q, status: newStatus } : q))
-    );
+    try {
+      await API.put(`/quotes/${statusChangeQt.id}`, { status: newStatus });
+      await fetchAll();
+    } catch {
+      setError("Status update cheyyaledu.");
+    }
     setStatusDialogOpen(false);
     setStatusChangeQt(null);
     setNewStatus("");
   };
 
-  // ── Convert to Invoice (Accepted → Invoiced) ──
-  const handleConvertToInvoice = (quote) => {
-    setQuotes((prev) =>
-      prev.map((q) => (q.id === quote.id ? { ...q, status: "Invoiced" } : q))
-    );
-    alert(`✅ QT-${quote.id} → Invoice create chesaamu!\nInvoices page lo INV auto add avutundi (backend tho).`);
+  // ── Convert to Invoice ──
+  const handleConvertToInvoice = async (quote) => {
+    try {
+      await API.put(`/quotes/${quote.id}`, { status: "Invoiced" });
+      await fetchAll();
+      alert(`✅ ${quote.quote_number} → Invoice create chesaamu!\nInvoices page lo INV auto add avutundi.`);
+    } catch {
+      setError("Convert to invoice failed.");
+    }
   };
 
+  // ── Delete ──
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete chesaali?")) return;
+    try {
+      await API.delete(`/quotes/${id}`);
+      setQuotes((prev) => prev.filter((q) => q.id !== id));
+    } catch {
+      setError("Delete cheyyaledu.");
+    }
+  };
+
+  // ── Normalize list for display ──
+  const normalizedQuotes = quotes.map(normalizeQuote);
+
   // ── Filter ──
-  const filtered = quotes.filter((q) => {
-    const matchSearch = q.customerName.toLowerCase().includes(search.toLowerCase()) ||
-                        q.id.toLowerCase().includes(search.toLowerCase());
+  const filtered = normalizedQuotes.filter((q) => {
+    const matchSearch =
+      (q.customerName || "").toLowerCase().includes(search.toLowerCase()) ||
+      (q.quote_number || "").toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "All" || q.status === statusFilter;
     return matchSearch && matchStatus;
   });
 
   // ── Stats ──
-  const acceptedCount = quotes.filter((q) => q.status === "Accepted").length;
-  const rejectedCount = quotes.filter((q) => q.status === "Rejected").length;
-  const invoicedCount = quotes.filter((q) => q.status === "Invoiced").length;
-  const totalValue    = quotes.reduce((s, q) => s + q.totalAmount, 0);
+  const acceptedCount = normalizedQuotes.filter((q) => q.status === "Accepted").length;
+  const rejectedCount = normalizedQuotes.filter((q) => q.status === "Rejected").length;
+  const invoicedCount = normalizedQuotes.filter((q) => q.status === "Invoiced").length;
+  const totalValue    = normalizedQuotes.reduce((s, q) => s + q.totalAmount, 0);
 
   // ────────────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", mt: 8 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   return (
     <Box>
       <Typography variant="h4" fontWeight="bold" sx={{ mb: 3 }}>Quotes</Typography>
 
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>{error}</Alert>
+      )}
+
       {/* ✅ Stats */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {[
-          { label: "Total Quotes",  value: quotes.length,     color: "#1976d2" },
-          { label: "Accepted",      value: acceptedCount,     color: "#2e7d32" },
-          { label: "Rejected",      value: rejectedCount,     color: "#d32f2f" },
-          { label: "Invoiced",      value: invoicedCount,     color: "#7b1fa2" },
-          { label: "Total Value",   value: formatPrice(totalValue), color: "#ed6c02" },
+          { label: "Total Quotes", value: normalizedQuotes.length, color: "#1976d2" },
+          { label: "Accepted",     value: acceptedCount,           color: "#2e7d32" },
+          { label: "Rejected",     value: rejectedCount,           color: "#d32f2f" },
+          { label: "Invoiced",     value: invoicedCount,           color: "#7b1fa2" },
+          { label: "Total Value",  value: formatPrice(totalValue),  color: "#ed6c02" },
         ].map((s) => (
           <Grid item xs={12} md={2.4} key={s.label}>
             <Card sx={{ borderLeft: `4px solid ${s.color}` }}>
@@ -308,9 +370,15 @@ function Quotes() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {filtered.map((qt) => (
+            {filtered.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} align="center" sx={{ py: 4, color: "text.secondary" }}>
+                  No quotes found
+                </TableCell>
+              </TableRow>
+            ) : filtered.map((qt) => (
               <TableRow key={qt.id} hover>
-                <TableCell sx={{ color: "#1976d2", fontWeight: "bold" }}>{qt.id}</TableCell>
+                <TableCell sx={{ color: "#1976d2", fontWeight: "bold" }}>{qt.quote_number}</TableCell>
                 <TableCell>{qt.customerName}</TableCell>
                 <TableCell>{qt.quoteDate}</TableCell>
                 <TableCell
@@ -321,7 +389,6 @@ function Quotes() {
                 <TableCell>{qt.salesperson || "—"}</TableCell>
                 <TableCell><strong>{formatPrice(qt.totalAmount)}</strong></TableCell>
                 <TableCell>
-                  {/* ✅ Clickable chip → status flow */}
                   <Chip
                     label={qt.status}
                     color={STATUS_COLOR[qt.status] || "default"}
@@ -339,15 +406,13 @@ function Quotes() {
                 <TableCell>
                   <Button size="small" onClick={() => { setSelected(qt); setViewOpen(true); }}>View</Button>
                   <Button size="small" onClick={() => { setForm({ ...qt }); setOpen(true); }}>Edit</Button>
-                  {/* ✅ Convert to Invoice button — only for Accepted */}
                   {qt.status === "Accepted" && (
                     <Button size="small" color="success" variant="outlined"
                       onClick={() => handleConvertToInvoice(qt)}>
                       → Invoice
                     </Button>
                   )}
-                  <Button size="small" color="error"
-                    onClick={() => setQuotes(quotes.filter((q) => q.id !== qt.id))}>
+                  <Button size="small" color="error" onClick={() => handleDelete(qt.id)}>
                     Delete
                   </Button>
                 </TableCell>
@@ -365,7 +430,6 @@ function Quotes() {
             Current: <strong>{statusChangeQt?.status}</strong>
           </Typography>
 
-          {/* ✅ Life cycle visual reminder */}
           <Box sx={{ bgcolor: "#f0f7ff", p: 1.5, borderRadius: 1, mb: 2 }}>
             <Typography variant="caption" color="text.secondary">
               Life Cycle: Draft → Sent → Accepted → Invoiced
@@ -400,7 +464,7 @@ function Quotes() {
       {/* ── CREATE / EDIT DIALOG ── */}
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="lg" fullWidth>
         <DialogTitle sx={{ bgcolor: "#1976d2", color: "white" }}>
-          {form?.id} — New Quote
+          {form?.quote_number} — {form?.id ? "Edit Quote" : "New Quote"}
         </DialogTitle>
 
         {form && (
@@ -413,19 +477,32 @@ function Quotes() {
                   select fullWidth label="Customer Name *"
                   value={form.customerId}
                   onChange={(e) => {
-                    const c = CUSTOMERS.find((x) => x.id === e.target.value);
-                    setForm({ ...form, customerId: e.target.value, customerName: c?.name || "" });
+const c = customers.find(
+  (x) => String(x.customer_id) === String(e.target.value)
+);                    setForm({
+                      ...form,
+                      customerId: e.target.value,
+                      customerName: c?.name || c?.customer_name || c?.display_name || "",
+                    });
                   }}
                 >
-                  {CUSTOMERS.map((c) => (
-                    <MenuItem key={c.id} value={c.id}>{c.name} — {c.company}</MenuItem>
-                  ))}
+                  {customers.map((c) => {
+  const cId   = c.customer_id;
+  const cName = c.name || c.customer_name || c.display_name || "";
+  const cComp = c.company || c.company_name || "";
+
+  return (
+    <MenuItem key={cId} value={cId}>
+      {cName}{cComp ? ` — ${cComp}` : ""}
+    </MenuItem>
+  );
+})}
                 </TextField>
               </Grid>
 
               {/* Quote # */}
               <Grid item xs={12} md={3}>
-                <TextField fullWidth label="Quote #" value={form.id} disabled />
+                <TextField fullWidth label="Quote #" value={form.quote_number} disabled />
               </Grid>
 
               {/* Reference */}
@@ -495,8 +572,8 @@ function Quotes() {
                             onChange={(e) => updateLine(li._key, "itemId", e.target.value)}
                           >
                             <MenuItem value="">-- Select --</MenuItem>
-                            {ITEMS_LIST.map((it) => (
-                              <MenuItem key={it.id} value={it.id}>{it.serviceName}</MenuItem>
+                            {itemsList.map((it) => (
+                              <MenuItem key={it.id} value={it.id}>{it.service_name}</MenuItem>
                             ))}
                           </TextField>
                         </TableCell>
@@ -593,16 +670,20 @@ function Quotes() {
         )}
 
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setOpen(false)}>Cancel</Button>
-          <Button variant="outlined" onClick={() => handleSave("Draft")}>Save as Draft</Button>
-          <Button variant="contained" onClick={() => handleSave("Sent")}>Save and Send</Button>
+          <Button onClick={() => setOpen(false)} disabled={saving}>Cancel</Button>
+          <Button variant="outlined" onClick={() => handleSave("Draft")} disabled={saving}>
+            {saving ? <CircularProgress size={18} /> : "Save as Draft"}
+          </Button>
+          <Button variant="contained" onClick={() => handleSave("Sent")} disabled={saving}>
+            {saving ? <CircularProgress size={18} /> : "Save and Send"}
+          </Button>
         </DialogActions>
       </Dialog>
 
       {/* ── VIEW DIALOG ── */}
       <Dialog open={viewOpen} onClose={() => setViewOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle sx={{ bgcolor: "#1976d2", color: "white" }}>
-          Quote Details — {selected?.id}
+          Quote Details — {selected?.quote_number}
         </DialogTitle>
 
         {selected && (
@@ -698,7 +779,6 @@ function Quotes() {
               </Box>
             )}
 
-            {/* ✅ Convert to Invoice from View dialog too */}
             {selected.status === "Accepted" && (
               <Box sx={{ mt: 2 }}>
                 <Button variant="contained" color="success"
