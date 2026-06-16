@@ -7,7 +7,7 @@ import {
   Stack, CircularProgress, Alert
 } from "@mui/material";
 
-const API = "http://localhost:5000/api";
+const API = "https://vjc-invoice-backend.vercel.app/api";
 
 const statusColor = (s) => s === "Active" ? "success" : s === "Inactive" ? "default" : "warning";
 const typeColor = (t) => t === "Business" ? "primary" : "secondary";
