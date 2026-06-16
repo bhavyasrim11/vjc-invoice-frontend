@@ -11,8 +11,7 @@ const API = "https://vjc-invoice-backend.vercel.app/api";
 
 const statusColor = (s) => s === "Active" ? "success" : s === "Inactive" ? "default" : "warning";
 const typeColor = (t) => t === "Business" ? "primary" : "secondary";
-const fmt = (n) => "₹" + Number(String(n || 0).replace(/[^0-9]/g, "")).toLocaleString("en-IN");
-
+const fmt = (n) => "₹" + Number(n || 0).toLocaleString("en-IN");
 const STATES = [
   "Andhra Pradesh","Telangana","Karnataka","Tamil Nadu","Maharashtra",
   "Gujarat","Rajasthan","Uttar Pradesh","Delhi","West Bengal","Kerala",
@@ -262,7 +261,7 @@ function PaymentDialog({ open, onClose, customer, onSuccess }) {
   const handleSubmit = async () => {
     if (!form.amount) return alert("Amount enter చేయి!");
     if (Number(form.amount) > Number(customer.outstanding)) {
-      return alert(`❌ Amount outstanding కంటే ఎక్కువగా ఉంది! Outstanding: ${fmt(customer.outstanding)}`);
+      return alert(`❌ Payment amount cannot be greater than the outstanding balance. Outstanding: ${fmt(customer.outstanding)}`);
     }
     setLoading(true);
     try {
