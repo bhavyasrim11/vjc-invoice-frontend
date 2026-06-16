@@ -90,31 +90,39 @@ export default function Login() {
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-    try {
-     const res = await axios.post(
-  "http://localhost:5000/api/auth/login",
-  {
-    email,
-    password,
+  e.preventDefault();
+  setError("");
+  setLoading(true);
+
+  const API_URL =
+    window.location.hostname === "localhost"
+      ? "http://localhost:5000"
+      : "https://vjc-invoice-backend.vercel.app";
+
+  try {
+    const res = await axios.post(
+      `${API_URL}/api/auth/login`,
+      {
+        email,
+        password,
+      }
+    );
+
+    localStorage.setItem("vjc_invoice_auth", res.data.token);
+
+    if (remember)
+      localStorage.setItem("rememberedEmail", email);
+
+    navigate("/dashboard");
+  } catch (err) {
+    setError(
+      err.response?.data?.message ||
+      "Invalid credentials. Please try again."
+    );
+  } finally {
+    setLoading(false);
   }
-);
-
-localStorage.setItem("vjc_invoice_auth", res.data.token);
-
-if (remember)
-  localStorage.setItem("rememberedEmail", email);
-
-navigate("/dashboard");
-    } catch (err) {
-      setError(err.response?.data?.message || "Invalid credentials. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+};
   return (
     <div className="login-root">
       <div className="login-card">
