@@ -210,8 +210,9 @@ function Quotes() {
     const { grandTotal } = totals(form.lineItems);
 
     const payload = {
+      
       quote_number:      form.quote_number,
-      customer_id:       form.customerId,
+      customer_id: Number(form.customerId),
       customer_name:     form.customerName,
       reference:         form.reference,
       quote_date:        form.quoteDate,
@@ -230,7 +231,7 @@ function Quotes() {
         discount:    li.discount,
       })),
     };
-
+console.log("QUOTE PAYLOAD", payload);
     try {
       if (form.id) {
         // Update
