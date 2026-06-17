@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 
-const API = "http://localhost:5000/api";
+const API = "https://vjc-invoice-backend.vercel.app/api";
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 function Toast({ message, onClose }) {
@@ -161,7 +161,7 @@ export default function TimeTracking() {
       }
       if (custData.success) setCustomers(custData.customers || []);
     } catch {
-      setToast("Backend connect అవ్వడం లేదు!");
+      setToast("Backend connection failed!");
     } finally {
       setLoading(false);
     }
