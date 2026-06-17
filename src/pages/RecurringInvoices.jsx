@@ -22,7 +22,7 @@ import RepeatIcon      from "@mui/icons-material/Repeat";
 import RefreshIcon     from "@mui/icons-material/Refresh";
 
 // ─── Config ──────────────────────────────────────────────────
-const API = "http://localhost:5000/api";
+const API = "https://vjc-invoice-backend.vercel.app/api";
 
 const formatPrice = (value) =>
   Number(value || 0).toLocaleString("en-IN", {
