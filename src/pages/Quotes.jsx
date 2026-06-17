@@ -10,7 +10,9 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 
 // ─── API Base ────────────────────────────────────────────────
-const API = axios.create({ baseURL: "http://localhost:5000/api" });
+const API = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || "https://vjc-invoice-backend.vercel.app/api"
+});
 
 // ─── Helpers ────────────────────────────────────────────────
 const formatPrice = (value) =>
@@ -97,7 +99,7 @@ function Quotes() {
       setCustomers(cRes.data.customers || []);
       setItemsList(iRes.data.items || []);
     } catch (err) {
-      setError("Data load cheyyaledu. Backend running unnada check cheyyandi.");
+      setError("Failed to load data data please check the bacjend connection.");
     } finally {
       setLoading(false);
     }
@@ -240,7 +242,7 @@ function Quotes() {
       await fetchAll();
       setOpen(false);
     } catch (err) {
-      setError("Quote save cheyyaledu. Try again.");
+      setError("Failed to save quote. please Try again.");
     } finally {
       setSaving(false);
     }
@@ -253,7 +255,7 @@ function Quotes() {
       await API.put(`/quotes/${statusChangeQt.id}`, { status: newStatus });
       await fetchAll();
     } catch {
-      setError("Status update cheyyaledu.");
+      setError("Failde to update quote status.");
     }
     setStatusDialogOpen(false);
     setStatusChangeQt(null);
@@ -278,7 +280,7 @@ function Quotes() {
       await API.delete(`/quotes/${id}`);
       setQuotes((prev) => prev.filter((q) => q.id !== id));
     } catch {
-      setError("Delete cheyyaledu.");
+      setError("Failed to delete quote.");
     }
   };
 

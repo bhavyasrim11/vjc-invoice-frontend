@@ -90,7 +90,7 @@ function Items() {
         setStats(res.data.stats || {});
       }
     } catch (err) {
-      showSnack("Items load cheyyadam fail aindhi!", "error");
+      showSnack("Failed to load services!", "error");
     } finally {
       setLoading(false);
     }
@@ -134,14 +134,14 @@ function Items() {
     try {
       const res = await axios.post(API_BASE, toBackend(newItem));
       if (res.data.success) {
-        showSnack("Service successfully add aindhi! ✅");
+        showSnack("Service added successfully! ✅");
         setNewItem(emptyForm);
         setErrors({});
         setOpen(false);
         fetchItems();
       }
     } catch (err) {
-      showSnack(err.response?.data?.message || "Add cheyyadam fail aindhi!", "error");
+      showSnack(err.response?.data?.message || "Failed to add service!", "error");
     }
   };
 
@@ -153,28 +153,28 @@ function Items() {
     try {
       const res = await axios.put(`${API_BASE}/${editItem.id}`, toBackend(editItem));
       if (res.data.success) {
-        showSnack("Service update aindhi! ✅");
+        showSnack("Service updated successfully! ✅");
         setErrors({});
         setEditOpen(false);
         setEditItem(null);
         fetchItems();
       }
     } catch (err) {
-      showSnack(err.response?.data?.message || "Update fail aindhi!", "error");
+      showSnack(err.response?.data?.message || "Failed to update service!", "error");
     }
   };
 
   // ✅ Delete → DELETE
   const handleDelete = async (id) => {
-    if (!window.confirm("Delete cheyyadam confirm na?")) return;
+    if (!window.confirm("Are you sure you want to delete this service?")) return;
     try {
       const res = await axios.delete(`${API_BASE}/${id}`);
       if (res.data.success) {
-        showSnack("Service delete aindhi! 🗑️");
+        showSnack("Service deleted successfully! 🗑️");
         fetchItems();
       }
     } catch (err) {
-      showSnack("Delete fail aindhi!", "error");
+      showSnack("Failed to delete service!", "error");
     }
   };
 
@@ -185,7 +185,7 @@ function Items() {
       await axios.put(`${API_BASE}/${item.id}`, toBackend({ ...item, status: newStatus }));
       fetchItems();
     } catch (err) {
-      showSnack("Status update fail aindhi!", "error");
+      showSnack("Failed to update status!", "error");
     }
   };
 
@@ -362,7 +362,7 @@ function Items() {
               {items.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} align="center" sx={{ py: 4, color: "text.secondary" }}>
-                    No services found. "+ Add Service" button tho add cheyyi!
+                    No services found. "+ Add Service" To create a new service!
                   </TableCell>
                 </TableRow>
               ) : (

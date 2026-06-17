@@ -23,7 +23,7 @@ import RefreshIcon      from "@mui/icons-material/Refresh";
 import CloseIcon        from "@mui/icons-material/Close";
 
 // ─── Config ──────────────────────────────────────────────────
-const API = "http://localhost:5000/api";
+const API = "https://vjc-invoice-backend.vercel.app/api";
 
 const formatPrice = (value) =>
   Number(value || 0).toLocaleString("en-IN", {
@@ -371,8 +371,13 @@ function PaymentsReceived() {
     try {
       setLoading(true);
       const res  = await fetch(`${API}/payments`);
-      const data = await res.json();
-      setPayments(data.map(mapRow));
+const data = await res.json();
+
+const list = Array.isArray(data)
+  ? data
+  : (data.data || []);
+
+setPayments(list.map(mapRow));
     } catch (err) {
       console.error("fetchPayments error:", err);
       showSnack("Failed to load payments", "error");
@@ -399,7 +404,9 @@ function PaymentsReceived() {
     try {
       const res  = await fetch(`${API}/sales-invoices`);
       const data = await res.json();
-      const list = Array.isArray(data) ? data : (data.invoices || []);
+     const list = Array.isArray(data)
+  ? data
+  : (data.data || data.invoices || []);
       setInvoices(list);
     } catch (err) {
       console.error("fetchInvoices error:", err);

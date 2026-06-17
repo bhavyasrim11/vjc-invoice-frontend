@@ -10,7 +10,9 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 
 // ─── API Base ────────────────────────────────────────────────
-const API = axios.create({ baseURL: "http://localhost:5000/api" });
+const API = axios.create({
+  baseURL: "https://vjc-invoice-backend.vercel.app/api",
+});
 
 // ─── Helpers ────────────────────────────────────────────────
 const formatPrice = (value) =>
@@ -99,7 +101,7 @@ function Invoices() {
       setCustomers(cRes.data.customers || []);
       setItemsList(iRes.data.items || []);
     } catch (err) {
-      setError("Data load cheyyaledu. Backend running unnada check cheyyandi.");
+      setError("Failed to load data please check the backend connection.");
     } finally {
       setLoading(false);
     }
@@ -233,7 +235,7 @@ function Invoices() {
       await fetchAll();
       setOpen(false);
     } catch (err) {
-      setError("Invoice save cheyyaledu. Try again.");
+      setError("Failed to save invoice. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -246,7 +248,7 @@ function Invoices() {
       await API.put(`/sales-invoices/${statusChangeInv.id}`, { status: newStatus });
       await fetchAll();
     } catch {
-      setError("Status update cheyyaledu.");
+      setError("Failed to update invoice status.");
     }
     setStatusDialogOpen(false);
     setStatusChangeInv(null);
@@ -255,12 +257,12 @@ function Invoices() {
 
   // ── Delete ──
   const handleDelete = async (id) => {
-    if (!window.confirm("Delete chesaali?")) return;
+    if (!window.confirm("Are you sure you want to delete this invoice?")) return;
     try {
       await API.delete(`/sales-invoices/${id}`);
       setInvoices((prev) => prev.filter((i) => (i.invoice_id || i.id) !== id));
     } catch {
-      setError("Delete cheyyaledu.");
+      setError("Failed to delete invoice.");
     }
   };
 
