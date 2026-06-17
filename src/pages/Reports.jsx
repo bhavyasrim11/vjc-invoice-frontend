@@ -1,7 +1,9 @@
 import { useState, useMemo, useEffect } from "react";
 import axios from "axios";
 
-const API = axios.create({ baseURL: "http://localhost:5000/api" });
+const API = axios.create({
+  baseURL: "https://vjc-invoice-backend.vercel.app/api"
+});
 
 // Reports already connected to real backend data
 const API_REPORT_MAP = {
@@ -207,7 +209,7 @@ function ReportView({ reportId, onBack }) {
     setError("");
     API.get(apiPath)
       .then((res) => { if (active) setLiveData(res.data.data || []); })
-      .catch(() => { if (active) setError("Report data load cheyyaledu. Backend running unnada check cheyyandi."); })
+      .catch(() => { if (active) setError("Failed to load report data.please check whether the backend is running."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [reportId]);
