@@ -9,7 +9,7 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 
-const API = "https://vjc-invoice-backend.vercel.app/api";
+const API = "http://localhost:5000/api";
 
 const statusColor = (s) => s === "Active" ? "success" : s === "Inactive" ? "default" : "warning";
 const typeColor = (t) => t === "Business" ? "primary" : "secondary";
@@ -129,8 +129,27 @@ function CustomerProfile({ customer, open, onClose, onCreateInvoice, onRecordPay
 // ── Customer Form Dialog ───────────────────────────────────────────────────
 function CustomerFormDialog({ open, onClose, onSave, initial, title }) {
   const [form, setForm] = useState(initial || EMPTY_FORM);
+  const [errors, setErrors] = useState({});
   useEffect(() => { setForm(initial || EMPTY_FORM); }, [initial, open]);
   const set = (field) => (e) => setForm({ ...form, [field]: e.target.value });
+  const validateForm = () => {
+  const newErrors = {};
+
+  if (!form.type) newErrors.type = "Customer Type is required";
+  if (!form.status) newErrors.status = "Status is required";
+  if (!form.name?.trim()) newErrors.name = "Customer Name is required";
+  if (!form.service_type) newErrors.service_type = "Service Type is required";
+  if (!form.phone?.trim()) newErrors.phone = "Phone is required";
+  if (!form.email?.trim()) newErrors.email = "Email is required";
+  if (!form.gstin?.trim()) newErrors.gstin = "GST Number is required";
+  if (!form.address?.trim()) newErrors.address = "Address is required";
+  if (!form.city?.trim()) newErrors.city = "City is required";
+  if (!form.state?.trim()) newErrors.state = "State is required";
+
+  setErrors(newErrors);
+
+  return Object.keys(newErrors).length === 0;
+};
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -144,20 +163,37 @@ function CustomerFormDialog({ open, onClose, onSave, initial, title }) {
           <MenuItem value="Active">Active</MenuItem>
           <MenuItem value="Inactive">Inactive</MenuItem>
         </TextField>
-        <TextField fullWidth margin="normal" label="Customer Name *" value={form.name} onChange={set("name")} />
-        <TextField select fullWidth margin="normal" label="Service Type" value={form.service_type || ""} onChange={set("service_type")}>
+<TextField
+  fullWidth
+  margin="normal"
+  label="Customer Name *"
+  value={form.name}
+  onChange={set("name")}
+  error={!!errors.name}
+  helperText={errors.name}
+/>        <TextField select fullWidth margin="normal" label="Service Type" value={form.service_type || ""} onChange={set("service_type")} error={!!errors.service_type} helperText={errors.service_type}>
+
           {VJC_SERVICES.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
         </TextField>
-        <TextField fullWidth margin="normal" label="Phone" value={form.phone} onChange={set("phone")} />
-        <TextField fullWidth margin="normal" label="Email" value={form.email} onChange={set("email")} />
-        <TextField fullWidth margin="normal" label="GST Number" value={form.gstin} onChange={set("gstin")} />
-        <TextField fullWidth margin="normal" label="Address" multiline rows={2} value={form.address} onChange={set("address")} />
+<TextField fullWidth margin="normal" label="Phone" value={form.phone} onChange={set("phone")} error={!!errors.phone} helperText={errors.phone} />
+<TextField fullWidth margin="normal" label="Email" value={form.email} onChange={set("email")} error={!!errors.email} helperText={errors.email} />
+<TextField
+  fullWidth
+  margin="normal"
+  label="GST Number *"
+  value={form.gstin}
+  onChange={set("gstin")}
+  error={!!errors.gstin}
+  helperText={errors.gstin}
+/>        <TextField fullWidth margin="normal" label="Address" multiline rows={2} value={form.address} onChange={set("address")} error={!!errors.address} helperText={errors.address} />
+
         <Grid container spacing={1}>
           <Grid item xs={6}>
-            <TextField fullWidth margin="normal" label="City" value={form.city} onChange={set("city")} />
+<TextField fullWidth margin="normal" label="City" value={form.city} onChange={set("city")} error={!!errors.city} helperText={errors.city} />
           </Grid>
           <Grid item xs={6}>
-            <TextField select fullWidth margin="normal" label="State" value={form.state} onChange={set("state")}>
+            <TextField select fullWidth margin="normal" label="State" value={form.state} onChange={set("state")} error={!!errors.state} helperText={errors.state}>
+
               {STATES.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
             </TextField>
           </Grid>
@@ -166,8 +202,15 @@ function CustomerFormDialog({ open, onClose, onSave, initial, title }) {
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" onClick={() => { if (form.name) { onSave(form); onClose(); } }}>
-          {title.startsWith("Edit") ? "Update Customer" : "Save Customer"}
+<Button
+  variant="contained"
+  onClick={() => {
+    if (validateForm()) {
+      onSave(form);
+      onClose();
+    }
+  }}
+>          {title.startsWith("Edit") ? "Update Customer" : "Save Customer"}
         </Button>
       </DialogActions>
     </Dialog>
@@ -213,7 +256,8 @@ const EMPTY_INVOICE_FORM = {
 
 function InvoiceDialog({ open, onClose, customer, onSuccess }) {
   const [form, setForm] = useState(EMPTY_INVOICE_FORM);
-  const [loading, setLoading] = useState(false);
+const [loading, setLoading] = useState(false);
+const [invoiceErrors, setInvoiceErrors] = useState({});
   const [customerSearch, setCustomerSearch] = useState("");
   const [customerOptions, setCustomerOptions] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -277,12 +321,16 @@ const set = (field) => (e) =>
     [field]: e.target.value,
   }));
   const handleSubmit = async () => {
-    if (!activeCustomer) return alert("Please select a client!");
-    if (!form.totalAmount) return alert("Please enter Total Amount!");
-    if (!form.paymentMode) return alert("Please select Payment Mode!");
-    if (!form.dueDate) return alert("Please select Due Date!");
-    if (!form.serviceType) return alert("Please select Service Type!");
-    if (!form.stateBy) return alert("Please select State By!");
+    const errs = {};
+    if (!activeCustomer) errs.clientName = "Client is required";
+    if (!form.totalAmount) errs.totalAmount = "Total Amount is required";
+    if (!form.paymentMode) errs.paymentMode = "Payment Mode is required";
+    if (needsRef && !form.referenceNo?.trim()) errs.referenceNo = `${refLabel} is required`;
+    if (balanceAmount > 0 && !form.dueDate) errs.dueDate = "Due Date is required";
+    if (!form.serviceType) errs.serviceType = "Service Type is required";
+    if (!form.stateBy) errs.stateBy = "State By is required";
+    if (Object.keys(errs).length > 0) { setInvoiceErrors(errs); return; }
+    setInvoiceErrors({});
 
     setLoading(true);
     try {
@@ -307,7 +355,7 @@ const set = (field) => (e) =>
           grand_total: grandTotal,
           paid_amount: paidAmountNum,
           balance_amount: balanceAmount,
-          due_date: form.dueDate,
+due_date: balanceAmount > 0 ? form.dueDate : null,
           service_type: form.serviceType,
           state_by: form.stateBy,
           notes: form.description,
@@ -401,6 +449,8 @@ onFocus={() => {
     setSearchOpen(true);
   }
 }}
+               error={!!invoiceErrors.clientName}
+              helperText={invoiceErrors.clientName}
               InputProps={{
                 endAdornment: (
                   <InputAdornment position="end">
@@ -529,7 +579,7 @@ setSearchOpen(false);
           {/* LEFT */}
           <Box sx={{ flex: 1 }}>
             <FieldRow label="Payment Mode" required>
-              <TextField
+<TextField
                 select fullWidth size="small" value={form.paymentMode}
                 onChange={(e) =>
   setForm((prev) => ({
@@ -538,6 +588,8 @@ setSearchOpen(false);
     referenceNo: "",
   }))
 }
+                error={!!invoiceErrors.paymentMode}
+                helperText={invoiceErrors.paymentMode}
                 SelectProps={{ displayEmpty: true }}
               >
                 <MenuItem value="" disabled><em>Select Option</em></MenuItem>
@@ -558,6 +610,8 @@ setSearchOpen(false);
       referenceNo: e.target.value,
     }))
   }
+  error={!!invoiceErrors.referenceNo}
+  helperText={invoiceErrors.referenceNo}
 />
               </FieldRow>
             )}
@@ -571,6 +625,8 @@ setSearchOpen(false);
 onChange={(e) => console.log(e.target.value)}
 onBlur={(e) => setForm(prev => ({ ...prev, totalAmount: e.target.value.replace(/[^0-9.]/g, "") }))}
 inputProps={{ inputMode: "decimal" }}
+error={!!invoiceErrors.totalAmount}
+helperText={invoiceErrors.totalAmount}
               />
             </FieldRow>
 
@@ -672,14 +728,21 @@ onBlur={(e) => setForm(prev => ({ ...prev, discount: e.target.value.replace(/[^0
               />
             </FieldRow>
 
-            <FieldRow label="Due Date" required>
-              <TextField
-                fullWidth size="small" type="date"
-                InputLabelProps={{ shrink: true }}
-                value={form.dueDate}
-                onChange={set("dueDate")}
-              />
-            </FieldRow>
+{balanceAmount > 0 && (
+  <FieldRow label="Due Date" required>
+     <TextField
+      fullWidth
+      size="small"
+      type="date"
+      InputLabelProps={{ shrink: true }}
+      value={form.dueDate}
+      onChange={set("dueDate")}
+      error={!!invoiceErrors.dueDate}
+      helperText={invoiceErrors.dueDate}
+    />
+
+  </FieldRow>
+)}
 
             {/* Attachment — appears only after paid amount has been entered */}
             {showAttachment && (
@@ -697,6 +760,8 @@ onBlur={(e) => setForm(prev => ({ ...prev, discount: e.target.value.replace(/[^0
               <TextField
                 select fullWidth size="small" value={form.serviceType}
                 onChange={set("serviceType")}
+                error={!!invoiceErrors.serviceType}
+                helperText={invoiceErrors.serviceType}
                 SelectProps={{ displayEmpty: true }}
               >
                 <MenuItem value="" disabled><em>Select Option</em></MenuItem>
@@ -708,6 +773,8 @@ onBlur={(e) => setForm(prev => ({ ...prev, discount: e.target.value.replace(/[^0
               <TextField
                 select fullWidth size="small" value={form.stateBy}
                 onChange={set("stateBy")}
+                error={!!invoiceErrors.stateBy}
+                helperText={invoiceErrors.stateBy}
                 SelectProps={{ displayEmpty: true }}
               >
                 <MenuItem value="" disabled><em>Select Option</em></MenuItem>
