@@ -9,9 +9,9 @@ import Items from "../pages/Items";
 import Quotes from "../pages/Quotes";
 import Invoices from "../pages/Invoices";
 import Payments from "../pages/Payments";
-import RecurringInvoices from "../pages/RecurringInvoices";
+
 import Expenses from "../pages/Expenses";
-import TimeTracking from "../pages/TimeTracking";
+
 import Reports from "../pages/Reports";
 
 const MainLayout = () => {
@@ -41,7 +41,7 @@ const MainLayout = () => {
 
           {page === "Customers" && <Customers />}
 
-          {page === "Items" && <Items />}
+          {page === "Services" && <Items />}
 
           {page === "Quotes" && <Quotes />}
 
@@ -49,11 +49,11 @@ const MainLayout = () => {
 
           {page === "Payments Received" && <Payments />}
 
-              {page === "Recurring Invoices" && <RecurringInvoices />}
+           
 
                {page === "Expenses" && <Expenses />}
 
-               {page === "Time Tracking" && <TimeTracking />}
+               
 
                {page === "Reports" && <Reports />}
         </div>

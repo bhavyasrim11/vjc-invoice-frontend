@@ -17,13 +17,13 @@ const Sidebar = ({ setPage, activePage }) => {
   const menuItems = [
     { name: "Dashboard", icon: <DashboardIcon /> },
     { name: "Customers", icon: <PeopleIcon /> },
-    { name: "Items", icon: <InventoryIcon /> },
+{ name: "Services", icon: <InventoryIcon /> },
     { name: "Quotes", icon: <RequestQuoteIcon /> },
     { name: "Invoices", icon: <ReceiptLongIcon /> },
     { name: "Payments Received", icon: <PaymentsIcon /> },
-    { name: "Recurring Invoices", icon: <AutorenewIcon /> },
+   
     { name: "Expenses", icon: <AccountBalanceWalletIcon /> },
-    { name: "Time Tracking", icon: <AccessTimeIcon /> },
+    
     { name: "Reports", icon: <AssessmentIcon /> },
   ];
 

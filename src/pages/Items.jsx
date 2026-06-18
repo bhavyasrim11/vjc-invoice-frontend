@@ -283,7 +283,7 @@ function Items() {
   return (
     <Box>
       <Typography variant="h4" fontWeight="bold" sx={{ mb: 3 }}>
-        Services / Items
+        Services 
       </Typography>
 
       {/* ✅ Stats Cards — backend stats use chestundi */}

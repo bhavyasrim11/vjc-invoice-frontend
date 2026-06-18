@@ -4,8 +4,10 @@ import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Paper, Dialog, DialogTitle, DialogContent, DialogActions,
   MenuItem, Chip, Avatar, Tabs, Tab, Divider,
-  Stack, CircularProgress, Alert
+  Stack, CircularProgress, Alert, IconButton, InputAdornment
 } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 
 const API = "https://vjc-invoice-backend.vercel.app/api";
 
@@ -30,6 +32,10 @@ const VJC_SERVICES = [
   "Austria Job Seeker Visa","Portugal Job Seeker Visa",
   "Job Search Service","South Africa Critical Skilled Visa","Other",
 ];
+
+const CURRENCIES = ["INR", "USD", "EUR", "GBP", "AUD", "CAD"];
+const INVOICE_TYPES = ["Including Tax", "Excluding Tax"];
+const PAYMENT_MODES = ["Cash", "UPI", "Bank Transfer", "Cheque", "Card"];
 
 const EMPTY_FORM = {
   type: "Business", status: "Active", name: "",
@@ -168,36 +174,150 @@ function CustomerFormDialog({ open, onClose, onSave, initial, title }) {
   );
 }
 
-// ── Invoice Dialog ─────────────────────────────────────────────────────────
-function InvoiceDialog({ open, onClose, customer }) {
-  const [form, setForm] = useState({ amount: "", dueDate: "", description: "" });
-  const [loading, setLoading] = useState(false);
-  if (!customer) return null;
+// ── Invoice Dialog (matches "Create Client Invoices" template) ─────────────
+const FieldRow = ({ label, required, children }) => (
+  <Box sx={{
+    display: "flex",
+    alignItems: "center",
+    py: 1.2,
+    borderBottom: "1px solid #f0f0f0",
+  }}>
+    <Typography sx={{
+      width: 155,
+      minWidth: 155,
+      fontWeight: 700,
+      fontSize: 13.5,
+      color: "#222",
+    }}>
+      {label}{required && <span style={{ color: "#d32f2f" }}> *</span>}
+    </Typography>
+    <Box sx={{ flex: 1 }}>{children}</Box>
+  </Box>
+);
+const todayStr = () => new Date().toISOString().split("T")[0];
 
+const EMPTY_INVOICE_FORM = {
+  invoiceType: "Including Tax",
+  currency: "INR",
+  invoiceDate: todayStr(),
+  paymentMode: "",
+  totalAmount: "",
+  discount: "0",
+  dueDate: "",
+  serviceType: "",
+  stateBy: "",
+  description: "",
+  paidAmount: "",
+  referenceNo: "",
+};
+
+function InvoiceDialog({ open, onClose, customer, onSuccess }) {
+  const [form, setForm] = useState(EMPTY_INVOICE_FORM);
+  const [loading, setLoading] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [customerOptions, setCustomerOptions] = useState([]);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  useEffect(() => {
+  if (open) {
+    setForm({ ...EMPTY_INVOICE_FORM });
+    setCustomerSearch("");
+    setSelectedCustomer(null);
+    setSearchOpen(false);
+  }
+}, [open]);
+
+useEffect(() => {
+  if (!open) return;
+
+  fetch(`${API}/customers`)
+    .then((r) => r.json())
+    .then((d) => {
+  console.log("CUSTOMERS API RESPONSE =", d);
+  console.log("FULL JSON =", JSON.stringify(d, null, 2));
+
+  setCustomerOptions(
+    d.customers ||
+    d.data?.customers ||
+    d.data ||
+    []
+  );
+})
+    .catch((err) => {
+      console.log("CUSTOMER API ERROR =", err);
+    });
+}, [open]);
+
+  const activeCustomer = selectedCustomer || customer;
+
+  const taxPercent = 18;
+  const totalAmountNum = Number(form.totalAmount || 0);
+  const discountNum = Number(form.discount || 0);
+  const paidAmountNum = Number(form.paidAmount || 0);
+  const invoiceAmount = Math.max(totalAmountNum - discountNum, 0);
+
+  let taxAmount = 0;
+  let grandTotal = 0;
+  if (form.invoiceType === "Including Tax") {
+    taxAmount = invoiceAmount - invoiceAmount / (1 + taxPercent / 100);
+    grandTotal = invoiceAmount;
+  } else {
+    taxAmount = (invoiceAmount * taxPercent) / 100;
+    grandTotal = invoiceAmount + taxAmount;
+  }
+  const balanceAmount = Math.max(grandTotal - paidAmountNum, 0);
+
+  // Show attachment field once paid amount has at least 1 digit
+  const showAttachment = form.paidAmount && form.paidAmount.length > 0;
+
+const set = (field) => (e) =>
+  setForm((prev) => ({
+    ...prev,
+    [field]: e.target.value,
+  }));
   const handleSubmit = async () => {
-    if (!form.amount) return alert("Please enter invoice amount!");
+    if (!activeCustomer) return alert("Please select a client!");
+    if (!form.totalAmount) return alert("Please enter Total Amount!");
+    if (!form.paymentMode) return alert("Please select Payment Mode!");
+    if (!form.dueDate) return alert("Please select Due Date!");
+    if (!form.serviceType) return alert("Please select Service Type!");
+    if (!form.stateBy) return alert("Please select State By!");
+
     setLoading(true);
     try {
       const res = await fetch(`${API}/invoices`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          customer_id: customer.id,
-          customer_name: customer.name,
-          customer_email: customer.email,
-          items: [{ description: form.description, amount: Number(form.amount) }],
-          subtotal: Number(form.amount),
-          tax_percent: 18,
-          tax_amount: Number(form.amount) * 0.18,
-          total_amount: Number(form.amount) * 1.18,
+          customer_id: activeCustomer.id,
+          customer_name: activeCustomer.name,
+          customer_email: activeCustomer.email,
+          invoice_type: form.invoiceType,
+          currency: form.currency,
+          invoice_date: form.invoiceDate,
+          payment_mode: form.paymentMode,
+          reference_no: form.referenceNo || null,
+          items: [{ description: form.description, amount: invoiceAmount }],
+          total_amount: totalAmountNum,
+          discount: discountNum,
+          subtotal: invoiceAmount,
+          tax_percent: taxPercent,
+          tax_amount: taxAmount,
+          grand_total: grandTotal,
+          paid_amount: paidAmountNum,
+          balance_amount: balanceAmount,
           due_date: form.dueDate,
+          service_type: form.serviceType,
+          state_by: form.stateBy,
           notes: form.description,
         }),
       });
       const result = await res.json();
       if (result.success) {
         alert("✅ Invoice created! Email sent to Chairman successfully!");
-        setForm({ amount: "", dueDate: "", description: "" });
+        setForm({ ...EMPTY_INVOICE_FORM });
+        onSuccess && onSuccess(activeCustomer.id);
         onClose();
       } else {
         alert("❌ Error: " + result.message);
@@ -209,47 +329,422 @@ function InvoiceDialog({ open, onClose, customer }) {
     }
   };
 
+  const readOnlyStyle = {
+    "& .MuiInputBase-root": { bgcolor: "#f0f1f3" },
+    "& .MuiInputBase-input": { color: "#888" },
+  };
+
+  
+
+  // Filter by name, customer_id, email, phone
+  console.log("CUSTOMER OPTIONS =", customerOptions);
+  const filteredCustomers =
+  customerSearch.length >= 1
+    ? customerOptions.filter((c) => {
+        const q = customerSearch.toLowerCase();
+
+        return (
+          c.name?.toLowerCase().includes(q) ||
+          c.customer_id?.toLowerCase().includes(q) ||
+          c.email?.toLowerCase().includes(q) ||
+          c.phone?.toString().includes(q)
+        );
+      })
+    : [];
+
+  const needsRef = ["UPI", "Bank Transfer", "Cheque"].includes(form.paymentMode);
+  const refLabel = form.paymentMode === "UPI"
+    ? "UTR / Reference No"
+    : form.paymentMode === "Cheque"
+    ? "Cheque No"
+    : "Reference No";
+
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>Create Invoice</DialogTitle>
-      <DialogContent>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Customer: <strong>{customer.name}</strong>
+    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth
+      PaperProps={{ sx: { borderRadius: 2 } }}>
+
+      {/* Teal header */}
+      <Box sx={{
+        bgcolor: "#0f9b8e", color: "#fff", px: 3, py: 2,
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        borderRadius: "8px 8px 0 0",
+      }}>
+        <Typography variant="h6" fontWeight={700} fontSize={18}>
+          Create Client Invoices
         </Typography>
-        <TextField
-          fullWidth margin="normal" label="Invoice Amount (₹)" type="number"
-          value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })}
-        />
-        <TextField
-          fullWidth margin="normal" label="Due Date" type="date"
-          InputLabelProps={{ shrink: true }}
-          value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
-        />
-        <TextField
-          fullWidth margin="normal" label="Description"
-          value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
-        />
-        {form.amount && (
-          <Box sx={{ mt: 1, p: 1.5, bgcolor: "#f5f5f5", borderRadius: 1 }}>
-            <Typography variant="caption" color="text.secondary">
-              Subtotal: {fmt(form.amount)} + Tax(18%): {fmt(Number(form.amount) * 0.18)}
+        <IconButton size="small" onClick={onClose} sx={{ color: "#fff" }}>
+          <CloseIcon />
+        </IconButton>
+      </Box>
+
+      <DialogContent sx={{ px: 4, pt: 3, pb: 1 }}>
+
+        {/* Top row */}
+        <Box sx={{ display: "flex", alignItems: "flex-end", gap: 2, mb: 1 }}>
+
+          {/* Client Name — searchable, image-3 style */}
+          <Box sx={{ flex: 2, position: "relative" }}>
+            <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#555", mb: 0.5 }}>
+              Client Name <span style={{ color: "#d32f2f" }}>*</span>
             </Typography>
-            <Typography variant="body2" fontWeight={700} color="primary">
-              Total: {fmt(Number(form.amount) * 1.18)}
-            </Typography>
+            <TextField
+              fullWidth size="small"
+placeholder="Type customer name..."
+value={customerSearch}
+              onChange={(e) => {
+                setCustomerSearch(e.target.value);
+                setSelectedCustomer(null);
+                setSearchOpen(true);
+              }}
+onFocus={() => {
+  if (customerSearch.length >= 1) {
+    setSearchOpen(true);
+  }
+}}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    {selectedCustomer ? (
+                      <IconButton size="small" onClick={() => {
+                        setSelectedCustomer(null);
+                        setCustomerSearch("");
+                        setSearchOpen(false);
+                      }}>
+                        <CloseIcon fontSize="small" />
+                      </IconButton>
+                    ) : (
+                      // dropdown arrow icon
+                      <Box sx={{ color: "#aaa", fontSize: 18, pr: 0.5, pointerEvents: "none" }}>▾</Box>
+                    )}
+                  </InputAdornment>
+                ),
+              }}
+            />
+
+            {/* Dropdown list — image 3 style */}
+            {searchOpen && !selectedCustomer && (
+              <Paper sx={{
+                position: "absolute", top: "100%", left: 0, right: 0,
+                zIndex: 9999, maxHeight: 220, overflowY: "auto",
+                border: "1px solid #ddd", boxShadow: 4,
+              }}>
+                {filteredCustomers.length === 0 ? (
+                  <Box sx={{ px: 2, py: 1.5 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      {customerSearch.length === 0
+                        ? "Please enter 1 or more characters"
+                        : "No customers found"}
+                    </Typography>
+                  </Box>
+                ) : (
+                  filteredCustomers.map((c, idx) => (
+                    <Box
+                      key={c.id}
+                      onClick={() => {
+setSelectedCustomer(c);
+
+setCustomerSearch(
+  `[${c.customer_id}] ${c.name}` +
+  (c.email ? ` | ${c.email}` : "") +
+  (c.phone ? ` | ${c.phone}` : "")
+);
+
+setSearchOpen(false);
+                      }}
+                      sx={{
+                        px: 2, py: 1.1, cursor: "pointer",
+                        bgcolor: idx === 0 ? "#1565c0" : "#fff",
+                        color: idx === 0 ? "#fff" : "#222",
+                        "&:hover": {
+                          bgcolor: idx === 0 ? "#1565c0" : "#f0f7ff",
+                        },
+                        borderBottom: "1px solid #f0f0f0",
+                      }}
+                    >
+                      <Typography variant="body2" fontWeight={500} fontSize={13}>
+                       [{c.customer_id}] {c.name}
+{c.email ? ` | ${c.email}` : ""}
+{c.phone ? ` | ${c.phone}` : ""}
+                     
+                      </Typography>
+                    </Box>
+                  ))
+                )}
+              </Paper>
+            )}
           </Box>
-        )}
+
+          {/* Gap */}
+          <Box sx={{ flex: 1 }} />
+
+          {/* Invoice Type */}
+          <Box sx={{ flex: 1 }}>
+            <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#555", mb: 0.5 }}>
+              Invoice Type
+            </Typography>
+            <TextField select fullWidth size="small" value={form.invoiceType} onChange={set("invoiceType")}>
+              {INVOICE_TYPES.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+            </TextField>
+          </Box>
+
+          {/* Currency */}
+          <Box sx={{ flex: 1 }}>
+            <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#555", mb: 0.5 }}>
+              Currency <span style={{ color: "#d32f2f" }}>*</span>
+            </Typography>
+            <TextField
+              select fullWidth size="small" value={form.currency} onChange={set("currency")}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end" sx={{ mr: 1 }}>
+                    <CheckCircleIcon fontSize="small" sx={{ color: "#2e7d32" }} />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{ "& .MuiOutlinedInput-notchedOutline": { borderColor: "#2e7d32", borderStyle: "dashed" } }}
+            >
+              {CURRENCIES.map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+            </TextField>
+          </Box>
+
+          {/* Invoice Date */}
+          <Box sx={{ flex: 1 }}>
+            <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#555", mb: 0.5 }}>
+              Invoice Date <span style={{ color: "#d32f2f" }}>*</span>
+            </Typography>
+            <TextField
+              fullWidth size="small" type="date"
+              InputLabelProps={{ shrink: true }}
+              value={form.invoiceDate}
+              onChange={set("invoiceDate")}
+            />
+          </Box>
+        </Box>
+
+        <Divider sx={{ my: 2 }} />
+
+        {/* Two-column body */}
+        <Box sx={{ display: "flex", gap: 6 }}>
+
+          {/* LEFT */}
+          <Box sx={{ flex: 1 }}>
+            <FieldRow label="Payment Mode" required>
+              <TextField
+                select fullWidth size="small" value={form.paymentMode}
+                onChange={(e) =>
+  setForm((prev) => ({
+    ...prev,
+    paymentMode: e.target.value,
+    referenceNo: "",
+  }))
+}
+                SelectProps={{ displayEmpty: true }}
+              >
+                <MenuItem value="" disabled><em>Select Option</em></MenuItem>
+                {PAYMENT_MODES.map((m) => <MenuItem key={m} value={m}>{m}</MenuItem>)}
+              </TextField>
+            </FieldRow>
+
+            {needsRef && (
+              <FieldRow label={refLabel} required>
+                <TextField
+  fullWidth
+  size="small"
+  placeholder={`Enter ${refLabel}`}
+  value={form.referenceNo || ""}
+  onChange={(e) =>
+    setForm((prev) => ({
+      ...prev,
+      referenceNo: e.target.value,
+    }))
+  }
+/>
+              </FieldRow>
+            )}
+
+            {/* Total Amount — plain text, no type=number, no focus jump */}
+            <FieldRow label="Total Amount" required>
+              <TextField
+                fullWidth size="small"
+                placeholder="Total Amount"
+               defaultValue=""
+onChange={(e) => console.log(e.target.value)}
+onBlur={(e) => setForm(prev => ({ ...prev, totalAmount: e.target.value.replace(/[^0-9.]/g, "") }))}
+inputProps={{ inputMode: "decimal" }}
+              />
+            </FieldRow>
+
+            <FieldRow label="Discount">
+              <TextField
+                fullWidth size="small"
+                value={form.discount}
+                // AFTER
+onChange={(e) => setForm(prev => ({ ...prev, discount: e.target.value }))}
+onBlur={(e) => setForm(prev => ({ ...prev, discount: e.target.value.replace(/[^0-9.]/g, "") }))}
+                inputProps={{ inputMode: "decimal" }}
+              />
+            </FieldRow>
+
+            <FieldRow label="Invoice Amount">
+              <TextField
+                fullWidth size="small"
+                value={invoiceAmount ? invoiceAmount.toLocaleString("en-IN") : ""}
+                placeholder="Invoice Amount"
+                InputProps={{ readOnly: true }}
+                sx={readOnlyStyle}
+              />
+            </FieldRow>
+
+            <FieldRow label="TAX (%)">
+              <TextField
+                fullWidth size="small"
+                value={taxPercent}
+                InputProps={{ readOnly: true }}
+                sx={readOnlyStyle}
+              />
+            </FieldRow>
+
+            <FieldRow label="TAX Amount">
+              <TextField
+                fullWidth size="small"
+                value={taxAmount ? taxAmount.toFixed(2) : "0.0"}
+                InputProps={{ readOnly: true }}
+                sx={readOnlyStyle}
+              />
+            </FieldRow>
+          </Box>
+
+          {/* RIGHT */}
+          <Box sx={{ flex: 1 }}>
+            <FieldRow label="Grand Total">
+              <TextField
+                fullWidth size="small"
+                value={grandTotal ? grandTotal.toLocaleString("en-IN") : ""}
+                placeholder="Grand Total"
+                InputProps={{ readOnly: true }}
+                sx={readOnlyStyle}
+              />
+            </FieldRow>
+
+            {/* Paid Amount — plain text, Full Pay button */}
+            <FieldRow label="Paid Amount">
+              <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+                <TextField
+  fullWidth
+  size="small"
+  placeholder="Paid Amount"
+  value={form.paidAmount || ""}
+  onChange={(e) => setForm(prev => ({ ...prev, paidAmount: e.target.value }))}
+  onBlur={(e) => setForm(prev => ({ ...prev, paidAmount: e.target.value.replace(/[^0-9.]/g, "") }))}
+  inputProps={{ inputMode: "decimal" }}
+                  InputProps={{
+                    endAdornment: form.paidAmount && Number(form.paidAmount) === grandTotal && grandTotal > 0 ? (
+                      <InputAdornment position="end">
+                        <CheckCircleIcon fontSize="small" sx={{ color: "#2e7d32" }} />
+                      </InputAdornment>
+                    ) : null,
+                  }}
+                />
+                {grandTotal > 0 && Number(form.paidAmount) !== grandTotal && (
+                  <Button
+                    size="small" variant="outlined" color="success"
+                   onClick={() =>
+  setForm((prev) => ({
+    ...prev,
+    paidAmount: String(grandTotal),
+  }))
+}
+                    sx={{ whiteSpace: "nowrap", fontSize: 11, px: 1.5, minWidth: "auto" }}
+                  >
+                    Full Pay
+                  </Button>
+                )}
+              </Box>
+            </FieldRow>
+
+            <FieldRow label="Balance Amount">
+              <TextField
+                fullWidth size="small"
+                value={form.totalAmount ? balanceAmount.toLocaleString("en-IN") : ""}
+                placeholder="Balance Amount"
+                InputProps={{ readOnly: true }}
+                sx={readOnlyStyle}
+              />
+            </FieldRow>
+
+            <FieldRow label="Due Date" required>
+              <TextField
+                fullWidth size="small" type="date"
+                InputLabelProps={{ shrink: true }}
+                value={form.dueDate}
+                onChange={set("dueDate")}
+              />
+            </FieldRow>
+
+            {/* Attachment — appears only after paid amount has been entered */}
+            {showAttachment && (
+              <FieldRow label="Attachment" required>
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  style={{ fontSize: 13 }}
+                  onChange={(e) => setForm({ ...form, attachment: e.target.files[0] || null })}
+                />
+              </FieldRow>
+            )}
+
+            <FieldRow label="Service Type" required>
+              <TextField
+                select fullWidth size="small" value={form.serviceType}
+                onChange={set("serviceType")}
+                SelectProps={{ displayEmpty: true }}
+              >
+                <MenuItem value="" disabled><em>Select Option</em></MenuItem>
+                {VJC_SERVICES.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+              </TextField>
+            </FieldRow>
+
+            <FieldRow label="State By" required>
+              <TextField
+                select fullWidth size="small" value={form.stateBy}
+                onChange={set("stateBy")}
+                SelectProps={{ displayEmpty: true }}
+              >
+                <MenuItem value="" disabled><em>Select Option</em></MenuItem>
+                {STATES.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+              </TextField>
+            </FieldRow>
+
+            <FieldRow label="Description">
+              <TextField
+                fullWidth size="small"
+                placeholder="Description"
+                value={form.description}
+                onChange={set("description")}
+              />
+            </FieldRow>
+          </Box>
+        </Box>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" onClick={handleSubmit} disabled={loading}>
-          {loading ? "Sending..." : "Create & Send to Chairman"}
+
+      <Divider sx={{ mt: 2 }} />
+      <DialogActions sx={{ px: 3, py: 2 }}>
+        <Button
+          variant="contained" onClick={onClose}
+          sx={{ bgcolor: "#e57373", "&:hover": { bgcolor: "#ef5350" }, px: 3, textTransform: "uppercase" }}
+        >
+          Close
+        </Button>
+        <Button
+          variant="contained" onClick={handleSubmit} disabled={loading}
+          sx={{ bgcolor: "#0f9b8e", "&:hover": { bgcolor: "#0c8276" }, px: 3 }}
+        >
+          {loading ? "Sending..." : "Create Invoice →"}
         </Button>
       </DialogActions>
     </Dialog>
   );
 }
-
 // ── Payment Dialog ─────────────────────────────────────────────────────────
 function PaymentDialog({ open, onClose, customer, onSuccess }) {
   const [form, setForm] = useState({ amount: "", payment_mode: "Cash", payment_date: "", notes: "" });
@@ -363,6 +858,38 @@ function Customers() {
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [selected, setSelected] = useState(null);
 
+  // Tracks customer ids that already have an invoice created in this session,
+  // as a safety net on top of whatever the backend reports (invoice_created /
+  // has_invoice / invoice_count / last_invoice_id on the customer record).
+  const [invoicedIds, setInvoicedIds] = useState(() => {
+    try {
+      const raw = window.localStorage?.getItem("vjc_invoiced_customer_ids");
+      return raw ? new Set(JSON.parse(raw)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
+  const persistInvoicedIds = (nextSet) => {
+    try {
+      window.localStorage?.setItem("vjc_invoiced_customer_ids", JSON.stringify([...nextSet]));
+    } catch {
+      // ignore storage errors (e.g. private browsing)
+    }
+  };
+
+  // Determine, using whatever signal is available, whether a customer
+  // already has an invoice created for them.
+  const hasExistingInvoice = (customer) => {
+    if (!customer) return false;
+    if (invoicedIds.has(customer.id)) return true;
+    if (customer.invoice_created) return true;
+    if (customer.has_invoice) return true;
+    if (Number(customer.invoice_count || 0) > 0) return true;
+    if (customer.last_invoice_id) return true;
+    return false;
+  };
+
   const fetchCustomers = async () => {
     try {
       setLoading(true);
@@ -408,23 +935,21 @@ function Customers() {
     } catch { alert("Failed to update customer"); }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Delete this customer?")) return;
-    try {
-      const res = await fetch(`${API}/customers/${id}`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert("✅ Customer deleted!");
-        fetchCustomers();
-      } else {
-        alert("❌ Delete failed: " + data.message);
-      }
-    } catch (err) {
-      alert("❌ Delete error: " + err.message);
+  const handleInvoiceButtonClick = (customer) => {
+    if (hasExistingInvoice(customer)) {
+      alert("❌ Already invoice created");
+      return;
     }
+    setSelected(customer);
+    setInvoiceOpen(true);
+  };
+
+  const handleInvoiceSuccess = (customerId) => {
+    const next = new Set(invoicedIds);
+    next.add(customerId);
+    setInvoicedIds(next);
+    persistInvoicedIds(next);
+    fetchCustomers();
   };
 
   return (
@@ -555,17 +1080,20 @@ function Customers() {
                         Edit
                       </Button>
                       <Button size="small" color="success"
-                        onClick={() => { setSelected(customer); setInvoiceOpen(true); }}>
+                        onClick={() => handleInvoiceButtonClick(customer)}>
                         Invoice
                       </Button>
-                      <Button size="small" color="warning"
-                        onClick={() => { setSelected(customer); setPaymentOpen(true); }}>
-                        Payment
-                      </Button>
-                      <Button size="small" color="error"
-                        onClick={() => handleDelete(customer.id)}>
-                        Delete
-                      </Button>
+                    <Chip
+  label={customer.invoice_status || "Pending"}
+  color={
+    customer.invoice_status === "Approved"
+      ? "success"
+      : customer.invoice_status === "Rejected"
+      ? "warning"
+      : "error"
+  }
+  size="small"
+/>
                     </Stack>
                   </TableCell>
                 </TableRow>
@@ -592,12 +1120,16 @@ function Customers() {
       <CustomerProfile
         customer={selected} open={viewOpen}
         onClose={() => setViewOpen(false)}
-        onCreateInvoice={(c) => { setSelected(c); setInvoiceOpen(true); }}
+        onCreateInvoice={(c) => handleInvoiceButtonClick(c)}
         onRecordPayment={(c) => { setSelected(c); setPaymentOpen(true); }}
       />
 
-      <InvoiceDialog open={invoiceOpen} onClose={() => setInvoiceOpen(false)}
-        customer={selected} />
+      <InvoiceDialog
+        open={invoiceOpen}
+        onClose={() => setInvoiceOpen(false)}
+        customer={selected}
+        onSuccess={handleInvoiceSuccess}
+      />
 
       <PaymentDialog
         open={paymentOpen}
