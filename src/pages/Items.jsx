@@ -27,8 +27,7 @@ import {
   Alert,
 } from "@mui/material";
 
-const API_BASE = "https://vjc-invoice-backend.vercel.app/api/items";
-
+const API_BASE = "http://localhost:5000/api/items";
 // ✅ Indian currency format
 const formatPrice = (value) => {
   if (!value) return "₹0";
@@ -115,16 +114,15 @@ function Items() {
 
   // ✅ camelCase → snake_case convert for backend
   const toBackend = (item) => ({
-    service_name: item.serviceName || item.service_name,
-    category: item.category,
-    country: item.country,
-    price: item.price,
-    gst: item.gst,
-    duration: item.duration,
-    documents: item.documents,
-    description: item.description,
-    status: item.status,
-  });
+  service_name: item.serviceName || item.service_name,
+  category: item.category,
+  country: item.country,
+  price: item.price,
+  gst: item.gst,
+  documents: item.documents,
+  description: item.description,
+  status: item.status,
+});
 
   // ✅ Add item → POST
   const handleAddItem = async () => {
@@ -254,11 +252,7 @@ function Items() {
         </Box>
       )}
 
-      <TextField
-        fullWidth margin="normal" label="Duration (e.g. 3 Months)"
-        value={formData.duration}
-        onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
-      />
+      
       <TextField
         fullWidth multiline rows={2} margin="normal" label="Required Documents"
         value={formData.documents}
@@ -442,17 +436,13 @@ function Items() {
           {selectedItem && (
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, mt: 1 }}>
               {[
-                ["Service Name", selectedItem.service_name || selectedItem.serviceName],
-                ["Category", selectedItem.category],
-                ["Country", selectedItem.country],
-                ["Base Price", formatPrice(selectedItem.price)],
-                ["GST", `${selectedItem.gst || 18}%  (₹${calcGST(selectedItem.price, selectedItem.gst || 18).toLocaleString("en-IN")})`],
-                ["Total (with GST)", formatPrice(Number(selectedItem.price) + calcGST(selectedItem.price, selectedItem.gst || 18))],
-                ["Duration", selectedItem.duration || "—"],
-                ["Documents", selectedItem.documents || "—"],
-                ["Description", selectedItem.description || "—"],
-                ["Status", selectedItem.status],
-              ].map(([label, value]) => (
+  ["Base Price", formatPrice(selectedItem.price)],
+  ["GST", `${selectedItem.gst || 18}%  (₹${calcGST(selectedItem.price, selectedItem.gst || 18).toLocaleString("en-IN")})`],
+  ["Total (with GST)", formatPrice(Number(selectedItem.price) + calcGST(selectedItem.price, selectedItem.gst || 18))],
+  ["Documents", selectedItem.documents || "—"],
+  ["Description", selectedItem.description || "—"],
+  ["Status", selectedItem.status],
+].map(([label, value]) => (
                 <Box key={label} sx={{ display: "flex", gap: 1 }}>
                   <Typography fontWeight="bold" sx={{ minWidth: 150 }}>{label}:</Typography>
                   <Typography>{value}</Typography>

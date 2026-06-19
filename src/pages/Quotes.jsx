@@ -11,7 +11,7 @@ import AddIcon from "@mui/icons-material/Add";
 
 // ─── API Base ────────────────────────────────────────────────
 const API = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "https://vjc-invoice-backend.vercel.app/api"
+  baseURL: "http://localhost:5000/api"
 });
 
 // ─── Helpers ────────────────────────────────────────────────
@@ -72,6 +72,7 @@ function Quotes() {
   const [selected, setSelected] = useState(null);
   const [search, setSearch]     = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  
 
   // ── Status change dialog ──
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
@@ -99,7 +100,7 @@ function Quotes() {
       setCustomers(cRes.data.customers || []);
       setItemsList(iRes.data.items || []);
     } catch (err) {
-      setError("Failed to load data data please check the bacjend connection.");
+      setError("Failed to load data  please check the backend connection.");
     } finally {
       setLoading(false);
     }

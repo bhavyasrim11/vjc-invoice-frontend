@@ -71,16 +71,15 @@ function CustomerProfile({ customer, open, onClose, onCreateInvoice, onRecordPay
             <Chip label={customer.type} color={typeColor(customer.type)} size="small" variant="outlined" />
           </Box>
         </Box>
-        <Box sx={{ display: "flex", gap: 1, mt: 2 }}>
-          <Button size="small" variant="contained"
-            onClick={() => { onCreateInvoice(customer); onClose(); }}>
-            + Create Invoice
-          </Button>
-          <Button size="small" variant="outlined" color="success"
-            onClick={() => { onRecordPayment(customer); onClose(); }}>
-            Record Payment
-          </Button>
-        </Box>
+<Box sx={{ display: "flex", gap: 1, mt: 2 }}>
+  <Button
+    size="small"
+    variant="contained"
+    onClick={() => { onCreateInvoice(customer); onClose(); }}
+  >
+    + Create Invoice
+  </Button>
+</Box>
         <Box sx={{ display: "flex", gap: 3, mt: 2, flexWrap: "wrap" }}>
           {[
             { label: "Outstanding", value: fmt(customer.outstanding), color: customer.outstanding > 0 ? "error.main" : "success.main" },
@@ -918,6 +917,7 @@ function Customers() {
   const [filterStatus, setFilterStatus] = useState("All");
   const [filterType, setFilterType] = useState("All");
 
+
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
@@ -974,8 +974,10 @@ function Customers() {
     }
   };
 
-  useEffect(() => { fetchCustomers(); }, [search, filterStatus, filterType]);
-
+  useEffect(() => {
+     fetchCustomers();
+     }, [search, filterStatus, filterType]);
+    
   const handleAdd = async (form) => {
     try {
       const res = await fetch(`${API}/customers`, {
@@ -1018,6 +1020,21 @@ function Customers() {
     persistInvoicedIds(next);
     fetchCustomers();
   };
+  const sortedCustomers = [...customers];
+
+const displayCustomers = sortedCustomers.filter((customer) => {
+  if (filterStatus === "Paid") {
+    return Number(customer.outstanding || 0) === 0;
+  }
+
+  if (filterStatus === "Pending") {
+    return Number(customer.outstanding || 0) > 0;
+  }
+
+  return true;
+});
+
+
 
   return (
     <Box>
@@ -1051,10 +1068,20 @@ function Customers() {
       <Box sx={{ display: "flex", gap: 2, mb: 2, flexWrap: "wrap", alignItems: "center" }}>
         <TextField label="Search Customer" size="small" value={search}
           onChange={(e) => setSearch(e.target.value)} sx={{ width: 280 }} />
-        <TextField select label="Status" size="small" value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)} sx={{ width: 130 }}>
-          {["All", "Active", "Inactive"].map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
-        </TextField>
+<TextField
+  select
+  label="Payment"
+  size="small"
+  value={filterStatus}
+  onChange={(e) => setFilterStatus(e.target.value)}
+  sx={{ width: 130 }}
+>
+  {["All", "Paid", "Pending"].map((s) => (
+    <MenuItem key={s} value={s}>
+      {s}
+    </MenuItem>
+  ))}
+</TextField>
         <TextField select label="Type" size="small" value={filterType}
           onChange={(e) => setFilterType(e.target.value)} sx={{ width: 130 }}>
           {["All", "Business", "Individual"].map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
@@ -1064,13 +1091,23 @@ function Customers() {
         </Typography>
       </Box>
 
-      {loading ? (
-        <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
-          <CircularProgress />
-        </Box>
-      ) : (
-        <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
-          <Table>
+{loading ? (
+  <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
+    <CircularProgress />
+  </Box>
+) : ( 
+   <>
+<TableContainer component={Paper} sx={{ borderRadius: 2 }}>
+          <Table
+            sx={{
+              "& th, & td": {
+                borderRight: "1px solid #e5e7eb",
+              },
+              "& th:last-child, & td:last-child": {
+                borderRight: "none",
+              },
+            }}
+          >
             <TableHead sx={{ bgcolor: "#f5f5f5" }}>
               <TableRow>
                 <TableCell sx={{ fontWeight: 700 }}>Customer ID</TableCell>
@@ -1078,7 +1115,7 @@ function Customers() {
                 <TableCell sx={{ fontWeight: 700 }}>Service Type</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Phone</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Type</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Payment </TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Outstanding</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Last Transaction</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Actions</TableCell>
@@ -1092,7 +1129,8 @@ function Customers() {
                   </TableCell>
                 </TableRow>
               )}
-              {customers.map((customer) => (
+{displayCustomers.map((customer) => (
+  
                 <TableRow key={customer.id} hover>
                   <TableCell>
                     <Typography variant="body2" fontWeight={600} color="primary">
@@ -1121,8 +1159,22 @@ function Customers() {
                     <Chip label={customer.type} color={typeColor(customer.type)} size="small" variant="outlined" />
                   </TableCell>
                   <TableCell>
-                    <Chip label={customer.status} color={statusColor(customer.status)} size="small" />
-                  </TableCell>
+  {customer.invoice_status === "Approved" && (
+    <Chip
+      label={
+        Number(customer.outstanding || 0) === 0
+          ? "Paid"
+          : "Partial Paid"
+      }
+      color={
+        Number(customer.outstanding || 0) === 0
+          ? "success"
+          : "warning"
+      }
+      size="small"
+    />
+  )}
+</TableCell>
                   <TableCell>
                     <Typography variant="body2" fontWeight={600}
                       color={customer.outstanding > 0 ? "error" : "success.main"}>
@@ -1168,6 +1220,8 @@ function Customers() {
             </TableBody>
           </Table>
         </TableContainer>
+        
+      </>
       )}
 
       <CustomerFormDialog open={addOpen} onClose={() => setAddOpen(false)}
