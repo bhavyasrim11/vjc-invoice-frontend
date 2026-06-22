@@ -38,9 +38,18 @@ const INVOICE_TYPES = ["Including Tax", "Excluding Tax"];
 const PAYMENT_MODES = ["Cash", "UPI", "Bank Transfer", "Cheque", "Card"];
 
 const EMPTY_FORM = {
-  type: "Business", status: "Active", name: "",
-  service_type: "", phone: "", email: "",
-  gstin: "", address: "", city: "", state: "", notes: "",
+  type: "Business",
+  status: "Active",
+  name: "",
+  service_type: "",
+  service_id: "",   // NEW
+  phone: "",
+  email: "",
+  gstin: "",
+  address: "",
+  city: "",
+  state: "",
+  notes: "",
 };
 
 function TabPanel({ children, value, index }) {
@@ -129,7 +138,20 @@ function CustomerProfile({ customer, open, onClose, onCreateInvoice, onRecordPay
 function CustomerFormDialog({ open, onClose, onSave, initial, title }) {
   const [form, setForm] = useState(initial || EMPTY_FORM);
   const [errors, setErrors] = useState({});
+  const [services, setServices] = useState([]);
   useEffect(() => { setForm(initial || EMPTY_FORM); }, [initial, open]);
+  useEffect(() => {
+  if (!open) return;
+
+  fetch("http://localhost:5000/api/items")
+    .then((res) => res.json())
+    .then((data) => {
+      if (data.success) {
+        setServices(data.items || []);
+      }
+    })
+    .catch((err) => console.log("Services load error", err));
+}, [open]);
   const set = (field) => (e) => setForm({ ...form, [field]: e.target.value });
   const validateForm = () => {
   const newErrors = {};
@@ -170,10 +192,32 @@ function CustomerFormDialog({ open, onClose, onSave, initial, title }) {
   onChange={set("name")}
   error={!!errors.name}
   helperText={errors.name}
-/>        <TextField select fullWidth margin="normal" label="Service Type" value={form.service_type || ""} onChange={set("service_type")} error={!!errors.service_type} helperText={errors.service_type}>
+/>       <TextField
+  select
+  fullWidth
+  margin="normal"
+  label="Service Type"
+  value={form.service_id || ""}
+  onChange={(e) => {
+    const selected = services.find(
+      (s) => String(s.id) === String(e.target.value)
+    );
 
-          {VJC_SERVICES.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
-        </TextField>
+    setForm({
+      ...form,
+      service_id: e.target.value,
+      service_type: selected?.service_name || "",
+    });
+  }}
+  error={!!errors.service_type}
+  helperText={errors.service_type}
+>
+  {services.map((s) => (
+    <MenuItem key={s.id} value={s.id}>
+      {s.service_name}
+    </MenuItem>
+  ))}
+</TextField>
 <TextField fullWidth margin="normal" label="Phone" value={form.phone} onChange={set("phone")} error={!!errors.phone} helperText={errors.phone} />
 <TextField fullWidth margin="normal" label="Email" value={form.email} onChange={set("email")} error={!!errors.email} helperText={errors.email} />
 <TextField
@@ -947,15 +991,20 @@ function Customers() {
 
   // Determine, using whatever signal is available, whether a customer
   // already has an invoice created for them.
-  const hasExistingInvoice = (customer) => {
-    if (!customer) return false;
-    if (invoicedIds.has(customer.id)) return true;
-    if (customer.invoice_created) return true;
-    if (customer.has_invoice) return true;
-    if (Number(customer.invoice_count || 0) > 0) return true;
-    if (customer.last_invoice_id) return true;
-    return false;
-  };
+const hasExistingInvoice = (customer) => {
+  if (!customer) return false;
+
+  // Partial paid unte — allow second invoice
+  if (Number(customer.outstanding || 0) > 0) return false;
+
+  // Full paid unte — block
+  if (invoicedIds.has(customer.id)) return true;
+  if (customer.invoice_created) return true;
+  if (customer.has_invoice) return true;
+  if (Number(customer.invoice_count || 0) > 0) return true;
+  if (customer.last_invoice_id) return true;
+  return false;
+};
 
   const fetchCustomers = async () => {
     try {

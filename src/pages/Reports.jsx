@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: "https://vjc-invoice-backend.vercel.app/api"
+  baseURL: "http://localhost:5000/api"
 });
 
 // Reports already connected to real backend data

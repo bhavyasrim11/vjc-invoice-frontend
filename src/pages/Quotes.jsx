@@ -68,6 +68,7 @@ function Quotes() {
 
   // ── UI state ──
   const [open, setOpen]         = useState(false);
+  
   const [viewOpen, setViewOpen] = useState(false);
   const [selected, setSelected] = useState(null);
   const [search, setSearch]     = useState("");
@@ -107,16 +108,18 @@ function Quotes() {
   };
 
   // ── Auto Quote Number ──
-  const nextQuoteNo = () => {
-    const nums = quotes.map((q) => {
-      const match = (q.quote_number || q.id || "").match(/(\d+)$/);
-      return match ? parseInt(match[1], 10) : 0;
-    });
-    const max = nums.length ? Math.max(...nums) : 0;
-    return `QT-${String(max + 1).padStart(6, "0")}`;
-  };
+  // AFTER
+const nextQuoteNo = () => {
+  const nums = quotes.map((q) => {
+    const match = (q.quote_number || "").match(/(\d+)$/);
+    return match ? parseInt(match[1], 10) : 0;
+  });
+  const max = nums.length ? Math.max(...nums) : 0;
+  return `QT-${String(max + 1).padStart(6, "0")}`;
+};
 
   const openNew = () => {
+    console.log("BUTTON CLICKED");
     setForm({
       id: null,
       quote_number: nextQuoteNo(),
@@ -211,10 +214,10 @@ function Quotes() {
     const { grandTotal } = totals(form.lineItems);
 
     const payload = {
-      
-      quote_number:      form.quote_number,
-      customer_id: Number(form.customerId),
-      customer_name:     form.customerName,
+  
+  quote_number:      form.quote_number,
+  customer_id: form.customerId,
+  customer_name:     form.customerName,
       reference:         form.reference,
       quote_date:        form.quoteDate,
       expiry_date:       form.expiryDate,
@@ -277,7 +280,7 @@ console.log("QUOTE PAYLOAD", payload);
 
   // ── Delete ──
   const handleDelete = async (id) => {
-    if (!window.confirm("Delete chesaali?")) return;
+    if (!window.confirm("Are you sure you want to delete this quote?")) return;
     try {
       await API.delete(`/quotes/${id}`);
       setQuotes((prev) => prev.filter((q) => q.id !== id));
@@ -466,8 +469,7 @@ console.log("QUOTE PAYLOAD", payload);
       </Dialog>
 
       {/* ── CREATE / EDIT DIALOG ── */}
-      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="lg" fullWidth>
-        <DialogTitle sx={{ bgcolor: "#1976d2", color: "white" }}>
+<Dialog key={form?.id ?? form?.quote_number} open={open} onClose={() => setOpen(false)} maxWidth="lg" fullWidth>        <DialogTitle sx={{ bgcolor: "#1976d2", color: "white" }}>
           {form?.quote_number} — {form?.id ? "Edit Quote" : "New Quote"}
         </DialogTitle>
 
@@ -478,19 +480,20 @@ console.log("QUOTE PAYLOAD", payload);
               {/* Customer */}
               <Grid item xs={12} md={6}>
                 <TextField
-                  select fullWidth label="Customer Name *"
-                  value={form.customerId}
-                  onChange={(e) => {
-const c = customers.find(
-  (x) => String(x.customer_id) === String(e.target.value)
-);                    setForm({
-                      ...form,
-                      customerId: e.target.value,
-                      customerName: c?.name || c?.customer_name || c?.display_name || "",
-                    });
-                  }}
-                >
-                  {customers.map((c) => {
+  select fullWidth label="Customer Name *"
+  value={form.customerId}
+  onChange={(e) => {
+    const c = customers.find(
+      (x) => String(x.customer_id) === String(e.target.value)
+    );
+    setForm({
+      ...form,
+      customerId: e.target.value,
+      customerName: c?.name || c?.customer_name || c?.display_name || "",
+    });
+  }}
+>
+                 {customers.map((c) => {
   const cId   = c.customer_id;
   const cName = c.name || c.customer_name || c.display_name || "";
   const cComp = c.company || c.company_name || "";

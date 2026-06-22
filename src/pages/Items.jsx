@@ -202,12 +202,39 @@ function Items() {
         error={!!errors.category} helperText={errors.category}
         onChange={(e) => setFormData({ ...formData, category: e.target.value })}
       >
-        <MenuItem value="Study Visa">Study Visa</MenuItem>
-        <MenuItem value="PR Visa">PR Visa</MenuItem>
-        <MenuItem value="Tourist Visa">Tourist Visa</MenuItem>
-        <MenuItem value="Job Seeker">Job Seeker</MenuItem>
-        <MenuItem value="Business Visa">Business Visa</MenuItem>
-        <MenuItem value="Work Permit">Work Permit</MenuItem>
+       {[
+  "Canada PR Visa",
+  "Canada Tourist Visa",
+  "Canada Visit Visa",
+  "Canada Study Visa",
+  "Canada Spouse Visa",
+  "Canada Super Visa",
+  "Germany Visit Visa",
+  "Germany Tourist Visa",
+  "Germany Study Visa",
+  "Germany Family Reunion Visa",
+  "Germany Opportunity Card",
+  "Australia PR Visa",
+  "Australia Visit/Tourist Visa",
+  "Australia Study Visa",
+  "Australia Spouse Visa",
+  "Newzealand Visit Visa",
+  "Newzealand Study Visa",
+  "US Study Visa",
+  "US H1B Visa",
+  "US B1/B2 Visa",
+  "UK Study Visa",
+  "UK Youth Mobility Program",
+  "UK Visit/Tourist Visa",
+  "Austria Job Seeker Visa",
+  "Portugal Job Seeker Visa",
+  "Job Search Service",
+  "South Africa Critical Skilled Visa"
+].map((service) => (
+  <MenuItem key={service} value={service}>
+    {service}
+  </MenuItem>
+))}
       </TextField>
 
       <TextField
