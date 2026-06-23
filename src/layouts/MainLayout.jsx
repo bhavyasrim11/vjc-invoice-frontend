@@ -13,13 +13,19 @@ import Payments from "../pages/Payments";
 import Expenses from "../pages/Expenses";
 
 import Reports from "../pages/Reports";
-
+import Employees from "../pages/Employees";   
+import AllEmployees from "../pages/AllEmployees.jsx";
 const MainLayout = () => {
   const [page, setPage] = useState("Dashboard");
 
   return (
     <div>
-      <Sidebar setPage={setPage} />
+      <Sidebar
+  setPage={(value) => {
+    console.log("Clicked =", value);
+    setPage(value);
+  }}
+/>
 
       <div
         style={{
@@ -56,7 +62,9 @@ const MainLayout = () => {
                
 
                {page === "Reports" && <Reports />}
-        </div>
+               {page === "Add Employee" && <Employees />}
+               {page === "All Employees" && <AllEmployees />}     
+                </div>
       </div>
     </div>
   );

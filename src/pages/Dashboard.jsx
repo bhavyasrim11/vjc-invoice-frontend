@@ -28,6 +28,9 @@ function Dashboard() {
   const [chartData, setChartData] = useState(null);
   const [recentInvoices, setRecentInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const user = JSON.parse(
+  localStorage.getItem("vjc_invoice_user")
+);
 
   useEffect(() => {
     fetchAll();
@@ -89,12 +92,12 @@ function Dashboard() {
           boxShadow: "0px 8px 20px rgba(0,0,0,0.12)",
         }}
       >
-        <Typography
-          variant="h6"
-          fontWeight="bold"
-        >
-          👋 Good Afternoon, Mani
-        </Typography>
+       <Typography
+  variant="h6"
+  fontWeight="bold"
+>
+  👋 Good Afternoon, {user?.name || "User"}
+</Typography>
 
         <Typography
           sx={{

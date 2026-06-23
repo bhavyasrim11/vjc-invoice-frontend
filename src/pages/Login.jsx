@@ -108,6 +108,10 @@ export default function Login() {
   );
 
   localStorage.setItem("vjc_invoice_auth", res.data.token);
+  localStorage.setItem(
+  "vjc_invoice_user",
+  JSON.stringify(res.data.user)
+);
 
   if (remember)
     localStorage.setItem("rememberedEmail", email);

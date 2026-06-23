@@ -9,23 +9,38 @@ import AutorenewIcon from "@mui/icons-material/Autorenew";
 import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import AssessmentIcon from "@mui/icons-material/Assessment";
+import BadgeIcon from "@mui/icons-material/Badge";
 import LogoutIcon from "@mui/icons-material/Logout";
 
 const Sidebar = ({ setPage, activePage }) => {
   const navigate = useNavigate();
-
-  const menuItems = [
-    { name: "Dashboard", icon: <DashboardIcon /> },
-    { name: "Customers", icon: <PeopleIcon /> },
-{ name: "Services", icon: <InventoryIcon /> },
-    { name: "Quotes", icon: <RequestQuoteIcon /> },
-    { name: "Invoices", icon: <ReceiptLongIcon /> },
-    { name: "Payments Received", icon: <PaymentsIcon /> },
-   
-    { name: "Expenses", icon: <AccountBalanceWalletIcon /> },
-    
-    { name: "Reports", icon: <AssessmentIcon /> },
-  ];
+   const user = JSON.parse(
+    localStorage.getItem("vjc_invoice_user")
+  );
+console.log("Logged User =", user);
+  const menuItems =
+  user?.role === "chairman"
+    ? [
+        { name: "Dashboard", icon: <DashboardIcon /> },
+        { name: "Customers", icon: <PeopleIcon /> },
+        { name: "Services", icon: <InventoryIcon /> },
+        { name: "Quotes", icon: <RequestQuoteIcon /> },
+        { name: "Invoices", icon: <ReceiptLongIcon /> },
+        { name: "Payments Received", icon: <PaymentsIcon /> },
+        { name: "Expenses", icon: <AccountBalanceWalletIcon /> },
+{ name: "Reports", icon: <AssessmentIcon /> },
+{ name: "All Employees", icon: <PeopleIcon /> },
+        { name: "Add Employee", icon: <BadgeIcon /> },
+      ]
+    : [
+        { name: "Dashboard", icon: <DashboardIcon /> },
+        { name: "Customers", icon: <PeopleIcon /> },
+        { name: "Services", icon: <InventoryIcon /> },
+        { name: "Quotes", icon: <RequestQuoteIcon /> },
+        { name: "Invoices", icon: <ReceiptLongIcon /> },
+        { name: "Payments Received", icon: <PaymentsIcon /> },
+        { name: "Reports", icon: <AssessmentIcon /> },
+      ];
 
   const handleLogout = () => {
     localStorage.removeItem("vjc_invoice_auth");
