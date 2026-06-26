@@ -59,6 +59,7 @@ function EmployeeCard({ emp, onDeactivate, onRefresh }) {
     doj:          emp.doj          || "",
     paid_leaves:  emp.paid_leaves  ?? "0",
     permissions:  emp.permissions  || {},
+    new_password: "",   // ← NEW: blank by default, only sent if filled
   });
 
   const set = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }));
@@ -70,10 +71,17 @@ function EmployeeCard({ emp, onDeactivate, onRefresh }) {
     setEditError("");
     try {
       const token = localStorage.getItem("vjc_invoice_auth");
+
+      // Only include new_password in payload if it was actually filled
+      const payload = { ...form };
+      if (!payload.new_password || payload.new_password.trim() === "") {
+        delete payload.new_password;
+      }
+
       const res = await fetch(`${API}/auth/employees/${emp.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (data.success) { setEditing(false); onRefresh(); }
@@ -100,6 +108,7 @@ function EmployeeCard({ emp, onDeactivate, onRefresh }) {
       doj:          emp.doj          || "",
       paid_leaves:  emp.paid_leaves  ?? "0",
       permissions:  emp.permissions  || {},
+      new_password: "",
     });
     setEditError("");
     setEditing(false);
@@ -110,7 +119,7 @@ function EmployeeCard({ emp, onDeactivate, onRefresh }) {
   const isActive  = emp.status === "active";
   const rs        = roleStyle(editing ? form.role : emp.role);
 
-  // ── inline field helper ──
+  // ── inline field helper — WIDTH stays same, just replaces value ──
   const inlineText = (field, placeholder = "", type = "text") =>
     editing ? (
       <TextField
@@ -118,7 +127,11 @@ function EmployeeCard({ emp, onDeactivate, onRefresh }) {
         value={form[field]} onChange={set(field)}
         placeholder={placeholder}
         inputProps={{ autoComplete: "off" }}
-        sx={{ "& .MuiInputBase-input": { fontSize: 12, py: 0.6, px: 1 } }}
+        sx={{
+          maxWidth: "100%",
+          "& .MuiInputBase-root": { fontSize: 12 },
+          "& .MuiInputBase-input": { fontSize: 12, py: 0.5, px: 1 },
+        }}
       />
     ) : (
       <Typography variant="caption" fontWeight={700} color="#0f172a">
@@ -129,7 +142,11 @@ function EmployeeCard({ emp, onDeactivate, onRefresh }) {
   const inlineSelect = (field, options) =>
     editing ? (
       <TextField select fullWidth size="small" value={form[field]} onChange={set(field)}
-        sx={{ "& .MuiInputBase-input": { fontSize: 12, py: 0.6, px: 1 } }}>
+        sx={{
+          maxWidth: "100%",
+          "& .MuiInputBase-root": { fontSize: 12 },
+          "& .MuiInputBase-input": { fontSize: 12, py: 0.5, px: 1 },
+        }}>
         {options.map(o => <MenuItem key={o} value={o} sx={{ fontSize: 12 }}>{o}</MenuItem>)}
       </TextField>
     ) : (
@@ -139,9 +156,15 @@ function EmployeeCard({ emp, onDeactivate, onRefresh }) {
     );
 
   return (
+    // ── KEY FIX: width: "100%" makes card fill the Grid cell exactly ──
+    // The Grid item (xs=12 md=6 lg=4) controls width. Card just fills it.
+    // overflow:hidden prevents ANY child from leaking outside.
     <Paper elevation={0} sx={{
       border: editing ? "2px solid #4f46e5" : "1px solid #e2e8f0",
-      borderRadius: 3, overflow: "hidden",
+      borderRadius: 3,
+      overflow: "hidden",       // ← CRITICAL: nothing can push card wider
+      width: "100%",            // ← fills Grid cell, never grows beyond it
+      boxSizing: "border-box",  // ← border included in width calculation
       transition: "box-shadow 0.2s",
       "&:hover": { boxShadow: "0 4px 24px rgba(0,0,0,0.08)" },
     }}>
@@ -151,12 +174,13 @@ function EmployeeCard({ emp, onDeactivate, onRefresh }) {
       <Box sx={{ p: 2.5 }}>
 
         {/* ── Avatar / Name / Email / Role ── */}
-        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, mb: 2 }}>
+        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, mb: 2, minWidth: 0 }}>
           <Avatar sx={{ width: 46, height: 46, fontSize: 16, fontWeight: 800, bgcolor: "#4f46e5", flexShrink: 0 }}>
             {initials}
           </Avatar>
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            {/* Name */}
+
+          {/* Name + Email block — minWidth:0 lets it shrink instead of pushing card wider */}
+          <Box sx={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
             {editing ? (
               <TextField fullWidth size="small" value={form.name} onChange={set("name")}
                 inputProps={{ autoComplete: "off" }}
@@ -164,7 +188,6 @@ function EmployeeCard({ emp, onDeactivate, onRefresh }) {
             ) : (
               <Typography fontWeight={800} fontSize={15} noWrap>{emp.name}</Typography>
             )}
-            {/* Email */}
             {editing ? (
               <TextField fullWidth size="small" value={form.email} onChange={set("email")}
                 inputProps={{ autoComplete: "off" }}
@@ -174,23 +197,25 @@ function EmployeeCard({ emp, onDeactivate, onRefresh }) {
                 {emp.email}
               </Typography>
             )}
-            {/* Department caption */}
             {!editing && emp.department && (
               <Typography variant="caption" color="text.secondary">⇢ {emp.department}</Typography>
             )}
           </Box>
-          {/* Role chip */}
-          {editing ? (
-            <TextField select size="small" value={form.role} onChange={set("role")}
-              sx={{ width: 130, "& .MuiInputBase-input": { fontSize: 11, py: 0.5, px: 0.8 } }}>
-              {ROLES.map(r => <MenuItem key={r} value={r} sx={{ fontSize: 12 }}>{r}</MenuItem>)}
-            </TextField>
-          ) : (
-            <Chip label={emp.role} size="small" sx={{
-              fontWeight: 700, fontSize: 11, flexShrink: 0,
-              bgcolor: rs.bg, color: rs.color, border: `1px solid ${rs.border}`,
-            }} />
-          )}
+
+          {/* Role chip / select — flexShrink:0 keeps it from collapsing */}
+          <Box sx={{ flexShrink: 0, maxWidth: 130 }}>
+            {editing ? (
+              <TextField select size="small" value={form.role} onChange={set("role")}
+                sx={{ width: 120, "& .MuiInputBase-input": { fontSize: 11, py: 0.5, px: 0.8 } }}>
+                {ROLES.map(r => <MenuItem key={r} value={r} sx={{ fontSize: 12 }}>{r}</MenuItem>)}
+              </TextField>
+            ) : (
+              <Chip label={emp.role} size="small" sx={{
+                fontWeight: 700, fontSize: 11,
+                bgcolor: rs.bg, color: rs.color, border: `1px solid ${rs.border}`,
+              }} />
+            )}
+          </Box>
         </Box>
 
         <Divider sx={{ mb: 1.5 }} />
@@ -202,11 +227,15 @@ function EmployeeCard({ emp, onDeactivate, onRefresh }) {
           { label: "Salary (₹)",  field: "salary",      type: "number"                       },
           { label: "Employee ID", field: "employee_id", type: "static"                       },
         ].map(row => (
-          <Box key={row.label} sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.8, gap: 1 }}>
+          <Box key={row.label} sx={{
+            display: "flex", justifyContent: "space-between",
+            alignItems: "center", mb: 0.8, gap: 1,
+            minWidth: 0,   // ← prevents row from pushing card wider
+          }}>
             <Typography variant="caption" fontWeight={600} sx={{ minWidth: 90, color: "#94a3b8", flexShrink: 0 }}>
               {row.label}
             </Typography>
-            <Box sx={{ flex: 1, textAlign: "right" }}>
+            <Box sx={{ flex: 1, minWidth: 0, textAlign: "right" }}>
               {row.type === "static"
                 ? <Typography variant="caption" fontWeight={700} sx={{ fontFamily: "monospace", color: "#4f46e5" }}>
                     {emp[row.field] || "—"}
@@ -219,29 +248,54 @@ function EmployeeCard({ emp, onDeactivate, onRefresh }) {
         ))}
 
         {/* ── Password row ── */}
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.8 }}>
-          <Typography variant="caption" fontWeight={600} sx={{ minWidth: 90, color: "#94a3b8" }}>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.8, minWidth: 0 }}>
+          <Typography variant="caption" fontWeight={600} sx={{ minWidth: 90, color: "#94a3b8", flexShrink: 0 }}>
             Password
           </Typography>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-            <Typography variant="caption" fontWeight={700} sx={{ letterSpacing: showPassword ? 0 : 2, color: "#0f172a" }}>
-              {showPassword ? (emp.plain_password || "not available") : "••••••••"}
-            </Typography>
-            <IconButton size="small" onClick={() => setShowPassword(v => !v)} sx={{ p: 0.3 }}>
-              {showPassword
-                ? <VisibilityOffIcon sx={{ fontSize: 13, color: "#94a3b8" }} />
-                : <VisibilityIcon   sx={{ fontSize: 13, color: "#94a3b8" }} />}
-            </IconButton>
+          <Box sx={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.5 }}>
+            {editing ? (
+              // ── NEW: editable password field in edit mode ──
+              // Placeholder = "Leave blank to keep current"
+              // Type toggles between password and text via eye icon
+              <Box sx={{ display: "flex", alignItems: "center", width: "100%", gap: 0.5 }}>
+                <TextField
+                  fullWidth size="small"
+                  type={showPassword ? "text" : "password"}
+                  value={form.new_password}
+                  onChange={set("new_password")}
+                  placeholder="Leave blank to keep current"
+                  inputProps={{ autoComplete: "new-password" }}
+                  sx={{ "& .MuiInputBase-input": { fontSize: 12, py: 0.5, px: 1 } }}
+                />
+                <IconButton size="small" onClick={() => setShowPassword(v => !v)} sx={{ p: 0.3, flexShrink: 0 }}>
+                  {showPassword
+                    ? <VisibilityOffIcon sx={{ fontSize: 13, color: "#94a3b8" }} />
+                    : <VisibilityIcon   sx={{ fontSize: 13, color: "#94a3b8" }} />}
+                </IconButton>
+              </Box>
+            ) : (
+              // ── View mode: show dots or plain password ──
+              <>
+                <Typography variant="caption" fontWeight={700} sx={{ letterSpacing: showPassword ? 0 : 2, color: "#0f172a" }}>
+                  {showPassword ? (emp.plain_password || "not available") : "••••••••"}
+                </Typography>
+                <IconButton size="small" onClick={() => setShowPassword(v => !v)} sx={{ p: 0.3 }}>
+                  {showPassword
+                    ? <VisibilityOffIcon sx={{ fontSize: 13, color: "#94a3b8" }} />
+                    : <VisibilityIcon   sx={{ fontSize: 13, color: "#94a3b8" }} />}
+                </IconButton>
+              </>
+            )}
           </Box>
         </Box>
 
         <Divider sx={{ my: 1.5 }} />
 
-        {/* ── Edit / Save / Cancel button ── */}
+        {/* ── Edit / Save / Cancel buttons ── */}
         {!editing ? (
           <Button fullWidth size="small" variant="outlined"
             startIcon={<EditIcon sx={{ fontSize: 13 }} />}
-            onClick={() => setEditing(true)}
+            onClick={() => { setShowPassword(false); setEditing(true); }}
             sx={{ borderRadius: 2, fontSize: 12, fontWeight: 700, mb: 1.2, borderColor: "#e2e8f0", color: "#64748b" }}>
             Edit Details
           </Button>
@@ -278,27 +332,29 @@ function EmployeeCard({ emp, onDeactivate, onRefresh }) {
 
         {showPerms && (
           <Box sx={{ mb: 1.2 }}>
-            {/* Permissions checkboxes — editable when editing */}
+            {/* Permissions grid — 2 columns, contained within card width */}
             <Grid container spacing={0.8} sx={{ mb: 1.5 }}>
               {ALL_PERMISSIONS.map(p => {
                 const checked = !!(editing ? form.permissions : emp.permissions)?.[p.key];
                 return (
                   <Grid item xs={6} key={p.key}>
                     <Box onClick={() => editing && togglePerm(p.key)} sx={{
-                      display: "flex", alignItems: "center", gap: 1,
-                      p: 1, borderRadius: 1.5,
+                      display: "flex", alignItems: "center", gap: 0.8,
+                      p: 0.8, borderRadius: 1.5,
                       cursor: editing ? "pointer" : "default",
                       border: `1.5px solid ${checked ? "#4f46e5" : "#e2e8f0"}`,
                       bgcolor: checked ? "#eef2ff" : "#fafafa",
+                      minWidth: 0, overflow: "hidden",   // ← stay in grid cell
                     }}>
-                      <Typography fontSize={14}>{p.icon}</Typography>
-                      <Typography fontSize={11} fontWeight={600} flex={1}
-                        color={checked ? "#3730a3" : "#374151"}>
+                      <Typography fontSize={13} sx={{ flexShrink: 0 }}>{p.icon}</Typography>
+                      <Typography fontSize={10} fontWeight={600} flex={1}
+                        color={checked ? "#3730a3" : "#374151"}
+                        noWrap>
                         {p.label}
                       </Typography>
                       {editing && (
                         <Checkbox checked={checked} onChange={() => togglePerm(p.key)}
-                          size="small" sx={{ p: 0, color: checked ? "#4f46e5" : "#cbd5e1" }}
+                          size="small" sx={{ p: 0, flexShrink: 0, color: checked ? "#4f46e5" : "#cbd5e1" }}
                           onClick={e => e.stopPropagation()} />
                       )}
                     </Box>
@@ -331,7 +387,7 @@ function EmployeeCard({ emp, onDeactivate, onRefresh }) {
           </Box>
         )}
 
-        {/* ── Deactivate button (only when not in accordion) ── */}
+        {/* ── Deactivate button (only when accordion is closed) ── */}
         {!showPerms && (
           <Button fullWidth size="small" color="error" variant="outlined"
             onClick={() => onDeactivate(emp.id)} disabled={!isActive}

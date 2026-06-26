@@ -5,11 +5,12 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 
 // ─── Config ──────────────────────────────────────────────────
-const API = "https://vjc-invoice-backend.vercel.app/api";
+const API = "http://localhost:5000/api";
 
 const CATEGORIES = [
   "Travel", "Meals", "Office Supplies", "Software", "Hardware",
-  "Marketing", "Utilities", "Rent", "Entertainment", "Others"
+  "Marketing", "Electricity & Water",
+"Internet / Mobile", "Rent", "Entertainment", "Others"
 ];
 
 const emptyForm = { date: "", category: "", customer: "", amount: "", billable: "true", notes: "" };
@@ -109,8 +110,10 @@ export default function Expenses() {
   const fetchExpenses = useCallback(async () => {
     try {
       setLoading(true);
-      const res  = await fetch(`${API}/expenses`);
-      const data = await res.json();
+const token = localStorage.getItem("vjc_invoice_auth");
+const res = await fetch(`${API}/expenses`, {
+  headers: { Authorization: `Bearer ${token}` }
+});      const data = await res.json();
       setExpenses(Array.isArray(data) ? data.map(mapRow) : []);
     } catch (err) {
       showToast("Failed to load expenses");
@@ -198,19 +201,21 @@ export default function Expenses() {
 
     try {
       if (editId) {
-        const res = await fetch(`${API}/expenses/${editId}`, {
-          method:  "PUT",
-          headers: { "Content-Type": "application/json" },
-          body:    JSON.stringify(payload),
-        });
+const token = localStorage.getItem("vjc_invoice_auth");
+const res = await fetch(`${API}/expenses/${editId}`, {
+  method:  "PUT",
+  headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+  body:    JSON.stringify(payload),
+});
         if (!res.ok) throw new Error(await res.text());
         showToast("Expense updated successfully ✅");
       } else {
-        const res = await fetch(`${API}/expenses`, {
-          method:  "POST",
-          headers: { "Content-Type": "application/json" },
-          body:    JSON.stringify(payload),
-        });
+        const token = localStorage.getItem("vjc_invoice_auth");
+const res = await fetch(`${API}/expenses`, {
+  method:  "POST",
+  headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+  body:    JSON.stringify(payload),
+});
         if (!res.ok) throw new Error(await res.text());
         showToast("Expense added successfully ✅");
       }

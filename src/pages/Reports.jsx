@@ -5,10 +5,16 @@ const API = axios.create({
   baseURL: "http://localhost:5000/api"
 });
 
+API.interceptors.request.use((config) => {
+  const token = localStorage.getItem("vjc_invoice_auth");
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
 // Reports already connected to real backend data
 const API_REPORT_MAP = {
   salesByCustomer:        "/reports/sales-by-customer",
   salesByItem:            "/reports/sales-by-item",
+  salesBySalesPerson:     "/reports/sales-by-salesperson",
   invoiceDetails:         "/reports/invoice-details",
   quoteDetails:           "/reports/quote-details",
   paymentsReceived:       "/reports/payments-received",
@@ -199,21 +205,21 @@ function ReportView({ reportId, onBack }) {
   const [liveData, setLiveData] = useState([]);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState("");
+  const [dateRange, setDateRange] = useState("thisMonth");
 
   const apiPath = API_REPORT_MAP[reportId];
 
   useEffect(() => {
-    if (!apiPath) return; // not connected — uses MOCK_DATA / coming soon
+    if (!apiPath) return;
     let active = true;
     setLoading(true);
     setError("");
-    API.get(apiPath)
+    API.get(apiPath, { params: { dateRange } })
       .then((res) => { if (active) setLiveData(res.data.data || []); })
       .catch(() => { if (active) setError("Failed to load report data.please check whether the backend is running."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [reportId]);
-
+  }, [reportId, dateRange]);
   const views = {
     // ✅ CONNECTED TO BACKEND
     salesByCustomer: () => (
@@ -245,16 +251,18 @@ function ReportView({ reportId, onBack }) {
     ),
 
     salesByItem: () => (
-      <Table
-        columns={[
-          { key: "item", label: "Item / Service", mono: true },
-          { key: "qty", label: "Qty Sold", bold: true },
-          { key: "amount", label: "Total Amount", currency: true, bold: true },
-          { key: "avgPrice", label: "Avg Price", currency: true },
-        ]}
-        rows={liveData}
-      />
-    ),
+  <Table
+    columns={[
+      { key: "item", label: "Item / Service", mono: true },
+      { key: "qty", label: "Qty Sold", bold: true },
+      { key: "amount", label: "Total Amount", currency: true, bold: true },
+      { key: "paid", label: "Paid", currency: true },
+      { key: "pending", label: "Pending", currency: true },
+      { key: "avgPrice", label: "Avg Price", currency: true },
+    ]}
+    rows={liveData}
+  />
+),
 
     invoiceDetails: () => (
       <Table
@@ -263,7 +271,9 @@ function ReportView({ reportId, onBack }) {
           { key: "customer", label: "Customer" },
           { key: "date", label: "Date" },
           { key: "dueDate", label: "Due Date" },
-          { key: "amount", label: "Amount", currency: true, bold: true },
+          { key: "amount", label: "Total Amount", currency: true, bold: true },
+          { key: "paid", label: "Paid", currency: true },
+          { key: "balance", label: "Balance", currency: true },
           { key: "status", label: "Status", badge: true },
         ]}
         rows={liveData}
@@ -334,17 +344,39 @@ function ReportView({ reportId, onBack }) {
     ),
 
     // ── Below: still MOCK_DATA (backend table not built yet) ──
-    salesBySalesPerson: () => (
+    salesBySalesPerson: () => {
+  const [spSearch, setSpSearch] = useState("");
+  const filtered = liveData.filter(r =>
+    r.person?.toLowerCase().includes(spSearch.toLowerCase()) ||
+    r.email?.toLowerCase().includes(spSearch.toLowerCase())
+  );
+  return (
+    <>
+      <div style={{ marginBottom: 14 }}>
+        <input
+          placeholder="Search by name or email..."
+          value={spSearch}
+          onChange={e => setSpSearch(e.target.value)}
+          style={{
+            padding: "8px 14px", border: "1px solid #ddd",
+            borderRadius: 8, fontSize: 13, width: 280, outline: "none"
+          }}
+        />
+      </div>
       <Table
         columns={[
           { key: "person", label: "Sales Person", mono: true },
+          { key: "email", label: "Email" },
           { key: "invoices", label: "Invoices", bold: true },
-          { key: "amount", label: "Revenue", currency: true, bold: true },
-          { key: "commission", label: "Commission (5%)", currency: true },
+          { key: "amount", label: "Total Sales", currency: true, bold: true },
+          { key: "paid", label: "Paid", currency: true },
+          { key: "pending", label: "Pending", currency: true },
         ]}
-        rows={MOCK_DATA.salesBySalesPerson}
+        rows={filtered}
       />
-    ),
+    </>
+  );
+},
     expenseDetails: () => (
       <Table
         columns={[
@@ -480,13 +512,15 @@ function ReportView({ reportId, onBack }) {
         boxShadow: "0 1px 4px rgba(0,0,0,0.06)", flexWrap: "wrap"
       }}>
         <span style={{ fontSize: 13, color: "#888", fontWeight: 600 }}>Date Range:</span>
-        <select defaultValue="thisMonth" style={{ padding: "6px 12px", borderRadius: 7, border: "1px solid #ddd", fontSize: 13 }}>
-          <option value="thisMonth">This Month</option>
-          <option value="lastMonth">Last Month</option>
-          <option value="thisQuarter">This Quarter</option>
-          <option value="thisYear">This Year</option>
-          <option value="custom">Custom Range</option>
-        </select>
+<select value={dateRange} onChange={e => setDateRange(e.target.value)} style={{ padding: "6px 12px", borderRadius: 7, border: "1px solid #ddd", fontSize: 13 }}>
+  <option value="today">Today</option>
+  <option value="thisWeek">This Week</option>
+  <option value="thisMonth">This Month</option>
+  <option value="lastMonth">Last Month</option>
+  <option value="thisQuarter">This Quarter</option>
+  <option value="thisYear">This Year</option>
+  <option value="custom">Custom Range</option>
+</select>
         <div style={{ flex: 1 }} />
         <button style={{
           padding: "7px 18px", borderRadius: 7, border: "1px solid #34a853",

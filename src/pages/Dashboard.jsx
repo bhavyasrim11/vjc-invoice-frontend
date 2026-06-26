@@ -36,25 +36,27 @@ function Dashboard() {
     fetchAll();
   }, []);
 
-  const fetchAll = async () => {
+const fetchAll = async () => {
   setLoading(true);
+  const token = localStorage.getItem("vjc_invoice_auth");
+  const config = { headers: { Authorization: `Bearer ${token}` } };
 
   try {
-    const kpiRes = await API.get("/dashboard/kpis");
+    const kpiRes = await API.get("/dashboard/kpis", config);
     setKpis(kpiRes.data.data);
   } catch (err) {
     console.log("KPI Error", err);
   }
 
   try {
-    const chartRes = await API.get("/dashboard/sales-overview");
+    const chartRes = await API.get("/dashboard/sales-overview", config);
     setChartData(chartRes.data.data);
   } catch (err) {
     console.log("Chart Error", err);
   }
 
   try {
-    const invRes = await API.get("/dashboard/recent-invoices");
+    const invRes = await API.get("/dashboard/recent-invoices", config);
     setRecentInvoices(invRes.data.data || []);
   } catch (err) {
     console.log("Invoice Error", err);
@@ -96,7 +98,7 @@ function Dashboard() {
   variant="h6"
   fontWeight="bold"
 >
-  👋 Good Afternoon, {user?.name || "User"}
+   👋 Good Afternoon, {user?.role === "chairman" ? "Mani" : (user?.name || "User")}
 </Typography>
 
         <Typography
