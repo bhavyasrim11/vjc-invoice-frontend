@@ -143,7 +143,9 @@ function CustomerFormDialog({ open, onClose, onSave, initial, title }) {
   useEffect(() => {
   if (!open) return;
 
-  fetch("http://localhost:5000/api/items")
+  fetch("http://localhost:5000/api/items", {
+  headers: { Authorization: `Bearer ${localStorage.getItem("vjc_invoice_auth")}` }
+})
     .then((res) => res.json())
     .then((data) => {
       if (data.success) {
@@ -318,18 +320,17 @@ const [invoiceErrors, setInvoiceErrors] = useState({});
 useEffect(() => {
   if (!open) return;
 
-  fetch(`${API}/customers`)
+  const token = localStorage.getItem("vjc_invoice_auth");
+fetch(`${API}/customers`, {
+  headers: { Authorization: `Bearer ${token}` },
+})
     .then((r) => r.json())
     .then((d) => {
   console.log("CUSTOMERS API RESPONSE =", d);
   console.log("FULL JSON =", JSON.stringify(d, null, 2));
 
-  setCustomerOptions(
-    d.customers ||
-    d.data?.customers ||
-    d.data ||
-    []
-  );
+  console.log("FULL RESPONSE =", d);
+setCustomerOptions(d.customers || []);
 })
     .catch((err) => {
       console.log("CUSTOMER API ERROR =", err);
@@ -377,9 +378,10 @@ const set = (field) => (e) =>
 
     setLoading(true);
     try {
-      const res = await fetch(`${API}/invoices`, {
+const token = localStorage.getItem("vjc_invoice_auth");
+const res = await fetch(`${API}/invoices`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           customer_id: activeCustomer.id,
           customer_name: activeCustomer.name,
@@ -1013,7 +1015,10 @@ const hasExistingInvoice = (customer) => {
       if (search) params.append("search", search);
       if (filterStatus !== "All") params.append("status", filterStatus);
       if (filterType !== "All") params.append("type", filterType);
-      const res = await fetch(`${API}/customers?${params}`);
+      const token = localStorage.getItem("vjc_invoice_auth");
+const res = await fetch(`${API}/customers?${params}`, {
+  headers: { Authorization: `Bearer ${token}` },
+});
       const data = await res.json();
       if (data.success) { setCustomers(data.customers); setStats(data.stats); }
     } catch (err) {
@@ -1029,11 +1034,15 @@ const hasExistingInvoice = (customer) => {
     
   const handleAdd = async (form) => {
     try {
-      const res = await fetch(`${API}/customers`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
+      const token = localStorage.getItem("vjc_invoice_auth");
+const res = await fetch(`${API}/customers`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  },
+  body: JSON.stringify(form),
+});
       const data = await res.json();
       if (data.success) fetchCustomers();
       else alert(data.message);
@@ -1042,11 +1051,15 @@ const hasExistingInvoice = (customer) => {
 
   const handleEdit = async (form) => {
     try {
-      const res = await fetch(`${API}/customers/${selected.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
+const token = localStorage.getItem("vjc_invoice_auth");
+const res = await fetch(`${API}/customers/${selected.id}`, {
+  method: "PUT",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  },
+  body: JSON.stringify(form),
+});
       const data = await res.json();
       if (data.success) fetchCustomers();
       else alert(data.message);

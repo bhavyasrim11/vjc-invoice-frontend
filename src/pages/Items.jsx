@@ -76,14 +76,15 @@ function Items() {
   };
 
   const [newItem, setNewItem] = useState(emptyForm);
-
+const authHeader = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem("vjc_invoice_auth")}` } });
   // ✅ Fetch items from backend
   const fetchItems = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(API_BASE, {
-        params: { search: search || undefined },
-      });
+const res = await axios.get(API_BASE, {
+  params: { search: search || undefined },
+  ...authHeader()
+});
       if (res.data.success) {
         setItems(res.data.items || []);
         setStats(res.data.stats || {});
@@ -130,7 +131,7 @@ function Items() {
     if (Object.keys(e).length > 0) { setErrors(e); return; }
 
     try {
-      const res = await axios.post(API_BASE, toBackend(newItem));
+      const res = await axios.post(API_BASE, toBackend(newItem), authHeader());
       if (res.data.success) {
         showSnack("Service added successfully! ✅");
         setNewItem(emptyForm);
@@ -149,7 +150,7 @@ function Items() {
     if (Object.keys(e).length > 0) { setErrors(e); return; }
 
     try {
-      const res = await axios.put(`${API_BASE}/${editItem.id}`, toBackend(editItem));
+    const res = await axios.put(`${API_BASE}/${editItem.id}`, toBackend(editItem), authHeader());
       if (res.data.success) {
         showSnack("Service updated successfully! ✅");
         setErrors({});
@@ -166,7 +167,7 @@ function Items() {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this service?")) return;
     try {
-      const res = await axios.delete(`${API_BASE}/${id}`);
+const res = await axios.delete(`${API_BASE}/${id}`, authHeader());
       if (res.data.success) {
         showSnack("Service deleted successfully! 🗑️");
         fetchItems();
@@ -180,7 +181,7 @@ function Items() {
   const handleStatusToggle = async (item) => {
     const newStatus = item.status === "Active" ? "Inactive" : "Active";
     try {
-      await axios.put(`${API_BASE}/${item.id}`, toBackend({ ...item, status: newStatus }));
+      await axios.put(`${API_BASE}/${item.id}`, toBackend({ ...item, status: newStatus }), authHeader());
       fetchItems();
     } catch (err) {
       showSnack("Failed to update status!", "error");

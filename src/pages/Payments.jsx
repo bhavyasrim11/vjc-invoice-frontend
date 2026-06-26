@@ -370,7 +370,10 @@ function PaymentsReceived() {
   const fetchPayments = useCallback(async () => {
     try {
       setLoading(true);
-      const res  = await fetch(`${API}/payments`);
+      const token = localStorage.getItem("vjc_invoice_auth");
+const res  = await fetch(`${API}/payments`, {
+  headers: { Authorization: `Bearer ${token}` },
+});
 const data = await res.json();
 
 const list = Array.isArray(data)
@@ -389,7 +392,10 @@ setPayments(list.map(mapRow));
   // ── Fetch customers from backend ──
   const fetchCustomers = useCallback(async () => {
     try {
-      const res  = await fetch(`${API}/customers`);
+const token = localStorage.getItem("vjc_invoice_auth");
+const res  = await fetch(`${API}/customers`, {
+  headers: { Authorization: `Bearer ${token}` },
+});
       const data = await res.json();
       // Support both array and { customers: [] } shape
       const list = Array.isArray(data) ? data : (data.customers || []);
@@ -426,9 +432,10 @@ setPayments(list.map(mapRow));
   const handleCreatePayment = async () => {
     if (!newForm.customerId || !newForm.amountDue) return;
     try {
-      const res = await fetch(`${API}/payments`, {
+     const token = localStorage.getItem("vjc_invoice_auth");
+const res = await fetch(`${API}/payments`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           invoice_id:    newForm.invoiceId || null,
           customer_id:   newForm.customerId,
@@ -452,11 +459,15 @@ setPayments(list.map(mapRow));
   // ── Send Reminder ──
   const handleSendReminder = async (payment, newStage, method, note) => {
     try {
-      const res = await fetch(`${API}/payments/${payment.dbId}/reminder`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ newStage, method, note }),
-      });
+      const token = localStorage.getItem("vjc_invoice_auth");
+const res = await fetch(`${API}/payments/${payment.dbId}/reminder`, {
+  method: "PUT",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  },
+  body: JSON.stringify({ newStage, method, note }),
+});
       if (!res.ok) throw new Error(await res.text());
       await fetchPayments();
       showSnack(`Reminder sent! Status → ${newStage}`);
@@ -468,11 +479,15 @@ setPayments(list.map(mapRow));
   // ── Record Payment ──
   const handleRecordPayment = async (payment, form) => {
     try {
-      const res = await fetch(`${API}/payments/${payment.dbId}/record`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
+      const token = localStorage.getItem("vjc_invoice_auth");
+const res = await fetch(`${API}/payments/${payment.dbId}/record`, {
+  method: "PUT",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  },
+  body: JSON.stringify(form),
+});
       if (!res.ok) throw new Error(await res.text());
       await fetchPayments();
       showSnack("Payment recorded!");
@@ -485,8 +500,11 @@ setPayments(list.map(mapRow));
   const handleVoid = async (payment) => {
     if (!window.confirm(`Do you want to void ${payment.id}?`)) return;
     try {
-      const res = await fetch(`${API}/payments/${payment.dbId}/void`, { method: "PUT" });
-      if (!res.ok) throw new Error(await res.text());
+const token = localStorage.getItem("vjc_invoice_auth");
+const res = await fetch(`${API}/payments/${payment.dbId}/void`, {
+  method: "PUT",
+  headers: { Authorization: `Bearer ${token}` },
+});      if (!res.ok) throw new Error(await res.text());
       await fetchPayments();
       showSnack(`${payment.id} voided`);
     } catch (err) {

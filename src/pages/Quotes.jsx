@@ -10,8 +10,17 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 
 // ─── API Base ────────────────────────────────────────────────
+const getToken = () => localStorage.getItem("vjc_invoice_auth");
+
 const API = axios.create({
   baseURL: "http://localhost:5000/api"
+});
+
+// Every axios request lo auto token add avutundi
+API.interceptors.request.use((config) => {
+  const token = getToken();
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
 });
 
 // ─── Helpers ────────────────────────────────────────────────
