@@ -11,9 +11,23 @@ import AddIcon from "@mui/icons-material/Add";
 
 // ─── API Base ────────────────────────────────────────────────
 const API = axios.create({
-baseURL: "https://vjc-invoice-backend.vercel.app/api",
+  baseURL: "https://vjc-invoice-backend.vercel.app/api",
 });
 
+API.interceptors.request.use((config) => {
+  const token = localStorage.getItem("vjc_invoice_auth");
+
+  console.log("TOKEN =", token);
+  console.log("REQUEST =", config.url);
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  console.log("HEADERS =", config.headers);
+
+  return config;
+});
 // ─── Helpers ────────────────────────────────────────────────
 const formatPrice = (value) =>
   Number(value || 0).toLocaleString("en-IN", {
