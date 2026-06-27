@@ -11,7 +11,7 @@ import AddIcon from "@mui/icons-material/Add";
 
 // ─── API Base ────────────────────────────────────────────────
 const API = axios.create({
-baseURL: "http://localhost:5000/api",
+baseURL: "https://vjc-invoice-backend.vercel.app/api",
 });
 
 // ─── Helpers ────────────────────────────────────────────────

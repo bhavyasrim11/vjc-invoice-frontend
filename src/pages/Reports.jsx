@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: "http://localhost:5000/api"
+  baseURL:"https://vjc-invoice-backend.vercel.app/api"
 });
 
 API.interceptors.request.use((config) => {

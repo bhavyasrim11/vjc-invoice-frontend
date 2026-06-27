@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 
 // ─── Config ──────────────────────────────────────────────────
-const API = "http://localhost:5000/api";
+const API = "https://vjc-invoice-backend.vercel.app/api";
 
 const CATEGORIES = [
   "Travel", "Meals", "Office Supplies", "Software", "Hardware",

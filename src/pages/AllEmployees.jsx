@@ -12,7 +12,7 @@ import CloseIcon         from "@mui/icons-material/Close";
 import VisibilityIcon    from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 
-const API = "http://localhost:5000/api";
+const API = "https://vjc-invoice-backend.vercel.app/api";
 
 const DEPARTMENTS = ["Sales", "Operations", "Accounts", "HR", "Marketing", "Management", "MIS", "Developer"];
 const ROLES       = ["employee", "manager", "mis-executive", "Full-Stack-Developer"];
