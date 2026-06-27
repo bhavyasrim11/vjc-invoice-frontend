@@ -143,7 +143,7 @@ function CustomerFormDialog({ open, onClose, onSave, initial, title }) {
   useEffect(() => {
   if (!open) return;
 
-  fetch("http://localhost:5000/api/items", {
+  fetch(`${API}/items`,  {
   headers: { Authorization: `Bearer ${localStorage.getItem("vjc_invoice_auth")}` }
 })
     .then((res) => res.json())
