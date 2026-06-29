@@ -542,8 +542,7 @@ const res = await fetch(`${API}/payments/${payment.dbId}/void`, {
 
   // ── Invoice dropdown options ──
 const invoiceOptions = invoices.map(inv => ({
-  id: inv.invoice_number || inv.invoice_no || inv.id || "",
-  customerName: inv.customer_name || inv.customerName || "",
+id: inv.invoice_id || inv.invoice_number || inv.invoice_no || inv.id || "",  customerName: inv.customer_name || inv.customerName || "",
   amount: Number(inv.grand_total || inv.total_amount || 0),
   due: inv.due_date?.slice(0,10) || "",
   paid: Number(inv.paid_amount || 0),
