@@ -293,9 +293,7 @@ setInvoices(invRes.data.data || []);
   });
 
   // ── Stats ──
-  const totalRevenue = normalizedInvoices
-    .filter((i) => i.status === "Paid")
-    .reduce((s, i) => s + i.totalAmount, 0);
+  
   const outstanding = normalizedInvoices
     .filter((i) => ["Sent", "Unpaid", "Overdue", "Partially Paid"].includes(i.status))
     .reduce((s, i) => s + i.totalAmount, 0);
