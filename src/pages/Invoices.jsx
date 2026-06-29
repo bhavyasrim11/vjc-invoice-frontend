@@ -328,7 +328,7 @@ setInvoices(invRes.data.data || []);
           { label: "Overdue",        value: overdueCount,              color: "#d32f2f" },
           { label: "Partially Paid", value: partialCount,              color: "#0288d1" },
           { label: "Outstanding",    value: formatPrice(outstanding),  color: "#ed6c02" },
-          { label: "Total Revenue",  value: formatPrice(totalRevenue), color: "#9c27b0" },
+         
         ].map((s) => (
           <Grid item xs={12} md={2} key={s.label}>
             <Card sx={{ borderLeft: `4px solid ${s.color}` }}>
