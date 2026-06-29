@@ -413,7 +413,10 @@ const res  = await fetch(`${API}/customers`, {
      const list = Array.isArray(data)
   ? data
   : (data.data || data.invoices || []);
-      setInvoices(list);
+
+console.log("SALES INVOICES API:", list);
+
+setInvoices(list);
     } catch (err) {
       console.error("fetchInvoices error:", err);
     }
@@ -538,12 +541,14 @@ const res = await fetch(`${API}/payments/${payment.dbId}/void`, {
   }));
 
   // ── Invoice dropdown options ──
-  const invoiceOptions = invoices.map(inv => ({
-    id:           inv.invoice_no || inv.id || inv.invoiceNo || "",
-    customerName: inv.customer_name || inv.customerName || "",
-    amount:       Number(inv.total_amount || inv.totalAmount || inv.amount || 0),
-    due:          inv.due_date?.slice(0,10) || inv.dueDate?.slice(0,10) || "",
-  }));
+const invoiceOptions = invoices.map(inv => ({
+  id: inv.invoice_number || inv.invoice_no || inv.id || "",
+  customerName: inv.customer_name || inv.customerName || "",
+  amount: Number(inv.grand_total || inv.total_amount || 0),
+  due: inv.due_date?.slice(0,10) || "",
+  paid: Number(inv.paid_amount || 0),
+  balance: Number(inv.balance_amount || 0),
+}));
 
   return (
     <Box>
@@ -727,7 +732,7 @@ const res = await fetch(`${API}/payments/${payment.dbId}/void`, {
                 onChange={(e) => {
                   const inv = invoiceOptions.find(i => i.id === e.target.value);
                   setNewForm({ ...newForm, invoiceId: e.target.value,
-                    amountDue: inv?.amount?.toString() || newForm.amountDue,
+amountDue: inv?.balance?.toString() || newForm.amountDue,
                     dueDate:   inv?.due || newForm.dueDate,
                   });
                 }} size="small">
