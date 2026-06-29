@@ -336,16 +336,7 @@ const res = await axios.delete(`${API_BASE}/${id}`, authHeader());
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} md={3}>
-          <Card sx={{ borderLeft: "4px solid #9c27b0" }}>
-            <CardContent>
-              <Typography color="text.secondary">Revenue</Typography>
-              <Typography variant="h5" fontWeight="bold">
-                {stats.total_revenue ? formatPrice(stats.total_revenue) : "₹0"}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
+        
       </Grid>
 
       {/* ✅ Search + Add */}
