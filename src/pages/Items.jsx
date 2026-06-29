@@ -330,7 +330,9 @@ const res = await axios.delete(`${API_BASE}/${id}`, authHeader());
           <Card sx={{ borderLeft: "4px solid #ed6c02" }}>
             <CardContent>
               <Typography color="text.secondary">Most Sold</Typography>
-              <Typography variant="h5" fontWeight="bold">Study Visa</Typography>
+              <Typography variant="h5" fontWeight="bold">
+  {stats.most_sold || "-"}
+</Typography>
             </CardContent>
           </Card>
         </Grid>

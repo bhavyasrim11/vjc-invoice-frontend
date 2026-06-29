@@ -111,7 +111,7 @@ function Invoices() {
         API.get("/customers"),
         API.get("/items"),
       ]);
-      setInvoices(invRes.data.data || []);
+setInvoices(invRes.data.data || []);
       setCustomers(cRes.data.customers || []);
       setItemsList(iRes.data.items || []);
     } catch (err) {
