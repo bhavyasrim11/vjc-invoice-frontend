@@ -70,7 +70,7 @@ console.log("Logged User =", user);
         <img src={vjcLogo} alt="VJC" style={{ width: "48px", height: "48px", objectFit: "contain" }} />
         <div>
           <h2 style={{ fontSize: "26px", fontWeight: "bold", margin: 0, lineHeight: 1.1 }}>
-            VJC Invoice
+            VJC Overseas
           </h2>
           <span style={{ fontSize: "11px", letterSpacing: "1.5px", color: "#94a3b8", fontWeight: 500 }}>
             INVOICE PORTAL
