@@ -31,7 +31,17 @@ function Dashboard() {
   const user = JSON.parse(
   localStorage.getItem("vjc_invoice_user")
 );
+const hour = new Date().getHours();
 
+let greeting = "Good Evening";
+
+if (hour < 12) {
+  greeting = "Good Morning";
+} else if (hour < 17) {
+  greeting = "Good Afternoon";
+} else {
+  greeting = "Good Evening";
+}
   useEffect(() => {
     fetchAll();
   }, []);
@@ -98,7 +108,7 @@ const fetchAll = async () => {
   variant="h6"
   fontWeight="bold"
 >
-   👋 Good Afternoon, {user?.role === "chairman" ? "Mani" : (user?.name || "User")}
+   👋 {greeting}, {user?.role === "chairman" ? "Dr.Mani" : (user?.name || "User")}
 </Typography>
 
         <Typography
