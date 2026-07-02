@@ -93,6 +93,7 @@ function Invoices() {
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [statusChangeInv, setStatusChangeInv]   = useState(null);
   const [newStatus, setNewStatus]               = useState("");
+  const [paidAmountInput, setPaidAmountInput]   = useState("");
 
   const [form, setForm]     = useState(null);
   const [saving, setSaving] = useState(false);
@@ -256,11 +257,12 @@ setInvoices(invRes.data.data || []);
   };
 
   // ── Status change ──
-  const handleStatusChange = async () => {
+ const handleStatusChange = async () => {
     if (!newStatus) return;
     try {
 await API.patch(`/sales-invoices/${statusChangeInv.id}/status`, {
-  status: newStatus
+  status: newStatus,
+  paid_amount: paidAmountInput !== "" ? Number(paidAmountInput) : undefined,
 });
       await fetchAll();
     } catch {
@@ -269,8 +271,8 @@ await API.patch(`/sales-invoices/${statusChangeInv.id}/status`, {
     setStatusDialogOpen(false);
     setStatusChangeInv(null);
     setNewStatus("");
+    setPaidAmountInput("");
   };
-
   // ── Delete ──
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this invoice?")) return;
@@ -439,6 +441,18 @@ await API.patch(`/sales-invoices/${statusChangeInv.id}/status`, {
               </MenuItem>
             ))}
           </TextField>
+
+          {newStatus === "Partially Paid" && (
+            <TextField
+              fullWidth
+              type="number"
+              label="Paid Amount (₹)"
+              value={paidAmountInput}
+              onChange={(e) => setPaidAmountInput(e.target.value)}
+              sx={{ mt: 2 }}
+              helperText={`Total: ${formatPrice(statusChangeInv?.totalAmount || 0)}`}
+            />
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setStatusDialogOpen(false)}>Cancel</Button>
