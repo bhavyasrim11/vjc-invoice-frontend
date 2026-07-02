@@ -111,7 +111,7 @@ function Invoices() {
         API.get("/customers"),
         API.get("/items"),
       ]);
-setInvoices(invRes.data.data || []);
+setInvoices(invRes.data.invoices || []);
       setCustomers(cRes.data.customers || []);
       setItemsList(iRes.data.items || []);
     } catch (err) {
@@ -212,7 +212,7 @@ setInvoices(invRes.data.data || []);
     })),
     notes:            inv.notes || "",
     status:           inv.status || "Draft",
-    totalAmount:      Number(inv.total_amount || inv.totalAmount || 0),
+    totalAmount: Number(inv.balance_amount ?? inv.total_amount ?? inv.totalAmount ?? 0),
   });
 
   // ── Save (Create / Update) ──
