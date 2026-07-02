@@ -24,8 +24,7 @@ function Dashboard() {
     totalInvoices: 0,
     paymentsReceived: 0,
     pendingAmount: 0,
-     monthlyPaymentsReceived: 0,
-    monthlyPendingAmount: 0,
+
   });
   const [chartData, setChartData] = useState(null);
   const [recentInvoices, setRecentInvoices] = useState([]);
@@ -172,31 +171,6 @@ const fetchAll = async () => {
             </Typography>
           </Grid>
         </Grid>
-
-        {(kpis.monthlyPaymentsReceived + kpis.monthlyPendingAmount) > 0 && (
-          <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
-            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.5 }}>
-              <Box sx={{ position: "relative", width: 88, height: 88 }}>
-                <svg width="88" height="88" viewBox="0 0 88 88">
-                  <circle cx="44" cy="44" r="38" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="8" />
-                  <circle
-                    cx="44" cy="44" r="38" fill="none" stroke="#fff" strokeWidth="8" strokeLinecap="round"
-                    strokeDasharray="238.76"
-                    strokeDashoffset={
-                      238.76 - (238.76 * (kpis.monthlyPaymentsReceived / (kpis.monthlyPaymentsReceived + kpis.monthlyPendingAmount)))
-                    }
-                    transform="rotate(-90 44 44)"
-                  />
-                  <text x="44" y="40" textAnchor="middle" fontSize="18" fontWeight="500" fill="#fff">
-                    {Math.round((kpis.monthlyPaymentsReceived / (kpis.monthlyPaymentsReceived + kpis.monthlyPendingAmount)) * 100)}%
-                  </text>
-                  <text x="44" y="56" textAnchor="middle" fontSize="9" fill="rgba(255,255,255,0.75)">collected</text>
-                </svg>
-              </Box>
-              <Typography sx={{ fontSize: 11, opacity: 0.75 }}>this month</Typography>
-            </Box>
-          </Box>
-        )}
       </Box>
 
       {/* Business Overview */}
