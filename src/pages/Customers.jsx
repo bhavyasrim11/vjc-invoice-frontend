@@ -299,6 +299,14 @@ const EMPTY_INVOICE_FORM = {
   referenceNo: "",
 };
 
+const fileToBase64 = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
 function InvoiceDialog({ open, onClose, customer, onSuccess }) {
   const [form, setForm] = useState(EMPTY_INVOICE_FORM);
 const [loading, setLoading] = useState(false);
@@ -378,6 +386,15 @@ const set = (field) => (e) =>
 
     setLoading(true);
     try {
+      let screenshotBase64 = null;
+      if (form.attachment) {
+        try {
+          screenshotBase64 = await fileToBase64(form.attachment);
+        } catch (e) {
+          console.log("Screenshot convert error", e);
+        }
+      }
+
 const token = localStorage.getItem("vjc_invoice_auth");
 const res = await fetch(`${API}/invoices`, {
         method: "POST",
@@ -404,6 +421,7 @@ due_date: balanceAmount > 0 ? form.dueDate : null,
           service_type: form.serviceType,
           state_by: form.stateBy,
           notes: form.description,
+          screenshot_base64: screenshotBase64,
         }),
       });
       const result = await res.json();
