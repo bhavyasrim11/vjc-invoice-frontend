@@ -11,6 +11,7 @@ import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 import BadgeIcon from "@mui/icons-material/Badge";
 import LogoutIcon from "@mui/icons-material/Logout";
+import vjcLogo from "../assets/vjc-logo-badge.png";
 
 const Sidebar = ({ setPage, activePage }) => {
   const navigate = useNavigate();
@@ -65,15 +66,17 @@ console.log("Logged User =", user);
         flexDirection: "column",
       }}
     >
-      <h2
-        style={{
-          marginBottom: "30px",
-          fontSize: "32px",
-          fontWeight: "bold",
-        }}
-      >
-        VJC Invoice
-      </h2>
+     <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "30px" }}>
+        <img src={vjcLogo} alt="VJC" style={{ width: "48px", height: "48px", objectFit: "contain" }} />
+        <div>
+          <h2 style={{ fontSize: "26px", fontWeight: "bold", margin: 0, lineHeight: 1.1 }}>
+            VJC Invoice
+          </h2>
+          <span style={{ fontSize: "11px", letterSpacing: "1.5px", color: "#94a3b8", fontWeight: 500 }}>
+            INVOICE PORTAL
+          </span>
+        </div>
+      </div>
 
       <div style={{ flex: 1 }}>
         {menuItems.map((item, index) => (
