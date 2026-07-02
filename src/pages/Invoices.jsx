@@ -259,7 +259,9 @@ setInvoices(invRes.data.invoices || []);
   const handleStatusChange = async () => {
     if (!newStatus) return;
     try {
-      await API.put(`/sales-invoices/${statusChangeInv.id}`, { status: newStatus });
+await API.patch(`/sales-invoices/${statusChangeInv.id}/status`, {
+  status: newStatus
+});
       await fetchAll();
     } catch {
       setError("Failed to update invoice status.");
