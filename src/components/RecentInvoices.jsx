@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Paper,
   Table,
@@ -15,8 +16,8 @@ import {
 const fmt = (n) => "₹" + Number(n || 0).toLocaleString("en-IN");
 
 function RecentInvoices({ invoices = [] }) {
-const [showAll, setShowAll] = useState(false);
-const displayed = showAll ? invoices : invoices.slice(0, 5);
+  const [showAll, setShowAll] = useState(false);
+  const displayed = showAll ? invoices : invoices.slice(0, 5);
 
   return (
     <Paper
@@ -41,7 +42,7 @@ const displayed = showAll ? invoices : invoices.slice(0, 5);
 
         <Button
           variant="text"
-          onClick={handleViewAll}
+          onClick={() => setShowAll(v => !v)}
           sx={{
             fontWeight: "bold",
             textTransform: "none",
@@ -49,8 +50,7 @@ const displayed = showAll ? invoices : invoices.slice(0, 5);
             fontSize: "15px",
           }}
         >
-         {showAll ? "Show Less ↑" : "View All →"}
-onClick={() => setShowAll(v => !v)}
+          {showAll ? "Show Less ↑" : "View All →"}
         </Button>
       </Box>
 
@@ -67,13 +67,13 @@ onClick={() => setShowAll(v => !v)}
           </TableHead>
 
           <TableBody>
-            {invoices.length === 0 ? (
+            {displayed.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} align="center" sx={{ py: 3, color: "text.secondary" }}>
                   No invoices yet
                 </TableCell>
               </TableRow>
-            ) : invoices.map((invoice) => (
+            ) : displayed.map((invoice) => (
               <TableRow
                 key={invoice.invoiceNo}
                 hover
