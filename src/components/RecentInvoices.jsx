@@ -15,9 +15,8 @@ import {
 const fmt = (n) => "₹" + Number(n || 0).toLocaleString("en-IN");
 
 function RecentInvoices({ invoices = [] }) {
-  const handleViewAll = () => {
-    alert("Invoices Page Coming Soon");
-  };
+const [showAll, setShowAll] = useState(false);
+const displayed = showAll ? invoices : invoices.slice(0, 5);
 
   return (
     <Paper
@@ -50,7 +49,8 @@ function RecentInvoices({ invoices = [] }) {
             fontSize: "15px",
           }}
         >
-          View All →
+         {showAll ? "Show Less ↑" : "View All →"}
+onClick={() => setShowAll(v => !v)}
         </Button>
       </Box>
 
