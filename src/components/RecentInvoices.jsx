@@ -36,10 +36,7 @@ function RecentInvoices({ invoices = [] }) {
           mb: 3,
         }}
       >
-        <Typography
-          variant="h5"
-          fontWeight="bold"
-        >
+        <Typography variant="h5" fontWeight="bold">
           Recent Invoices
         </Typography>
 
@@ -61,28 +58,18 @@ function RecentInvoices({ invoices = [] }) {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>
-                <b>Invoice No</b>
-              </TableCell>
-
-              <TableCell>
-                <b>Customer Name</b>
-              </TableCell>
-
-              <TableCell align="right">
-                <b>Amount</b>
-              </TableCell>
-
-              <TableCell>
-                <b>Status</b>
-              </TableCell>
+              <TableCell><b>Invoice No</b></TableCell>
+              <TableCell><b>Customer Name</b></TableCell>
+              <TableCell align="right"><b>Amount</b></TableCell>
+              <TableCell align="right"><b>Paid</b></TableCell>
+              <TableCell><b>Status</b></TableCell>
             </TableRow>
           </TableHead>
 
           <TableBody>
             {invoices.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} align="center" sx={{ py: 3, color: "text.secondary" }}>
+                <TableCell colSpan={5} align="center" sx={{ py: 3, color: "text.secondary" }}>
                   No invoices yet
                 </TableCell>
               </TableRow>
@@ -90,33 +77,20 @@ function RecentInvoices({ invoices = [] }) {
               <TableRow
                 key={invoice.invoiceNo}
                 hover
-                sx={{
-                  "&:hover": {
-                    backgroundColor: "#f8fafc",
-                  },
-                }}
+                sx={{ "&:hover": { backgroundColor: "#f8fafc" } }}
               >
-                <TableCell
-                  sx={{
-                    color: "#2563eb",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
-                >
+                <TableCell sx={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}>
                   {invoice.invoiceNo}
                 </TableCell>
 
-                <TableCell>
-                  {invoice.customerName}
+                <TableCell>{invoice.customerName}</TableCell>
+
+                <TableCell align="right" sx={{ fontWeight: 700 }}>
+                  {fmt(invoice.amount)}
                 </TableCell>
 
-                <TableCell
-                  align="right"
-                  sx={{
-                    fontWeight: 700,
-                  }}
-                >
-                  {fmt(invoice.amount)}
+                <TableCell align="right" sx={{ fontWeight: 700, color: "#16a34a" }}>
+                  {fmt(invoice.paidAmount)}
                 </TableCell>
 
                 <TableCell>
@@ -130,9 +104,7 @@ function RecentInvoices({ invoices = [] }) {
                         : "warning"
                     }
                     size="small"
-                    sx={{
-                      fontWeight: "bold",
-                    }}
+                    sx={{ fontWeight: "bold" }}
                   />
                 </TableCell>
               </TableRow>
