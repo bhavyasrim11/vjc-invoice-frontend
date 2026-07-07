@@ -1278,10 +1278,15 @@ const displayCustomers = sortedCustomers.filter((customer) => {
                         onClick={() => { setSelected(customer); setEditOpen(true); }}>
                         Edit
                       </Button>
-                      <Button size="small" color="success"
-                        onClick={() => handleInvoiceButtonClick(customer)}>
-                        Invoice
-                      </Button>
+                     <Button
+  size="small"
+  color="success"
+  onClick={() => handleInvoiceButtonClick(customer)}
+>
+  {Number(customer.outstanding || 0) > 0
+    ? "Remaining Invoice"
+    : "Invoice"}
+</Button>
                     <Chip
   label={customer.invoice_status || "Pending"}
   color={
