@@ -195,6 +195,7 @@ setInvoices(invRes.data.data || []);
 
   // ── Normalize invoice from API response ──
   const normalizeInvoice = (inv) => ({
+  originalInvoice: inv.original_invoice_number || "-",
     id:               inv.invoice_id || inv.id,
     invoice_number:   inv.invoice_id || inv.invoice_number || inv.id,
     customerId:       inv.customer_id || inv.customerId,
@@ -371,7 +372,7 @@ await API.patch(`/sales-invoices/${statusChangeInv.id}/status`, {
         <Table>
           <TableHead sx={{ bgcolor: "#f5f5f5" }}>
             <TableRow>
-              {["Invoice #", "Customer", "Date", "Due Date", "Amount", "Status", "Actions"].map((h) => (
+              {["Invoice #", "Original Invoice", "Customer", "Date", "Due Date", "Amount", "Status", "Actions"].map((h) => (
                 <TableCell key={h}><strong>{h}</strong></TableCell>
               ))}
             </TableRow>
@@ -379,14 +380,15 @@ await API.patch(`/sales-invoices/${statusChangeInv.id}/status`, {
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 4, color: "text.secondary" }}>
+                <TableCell colSpan={8} align="center" sx={{ py: 4, color: "text.secondary" }}>
                   No invoices found
                 </TableCell>
               </TableRow>
             ) : filtered.map((inv) => (
               <TableRow key={inv.id} hover>
                 <TableCell sx={{ color: "#1976d2", fontWeight: "bold" }}>{inv.invoice_number}</TableCell>
-                <TableCell>{inv.customerName}</TableCell>
+                <TableCell>{inv.originalInvoice}</TableCell>
+<TableCell>{inv.customerName}</TableCell>
                 <TableCell>{inv.invoiceDate}</TableCell>
                 <TableCell
                   sx={{ color: inv.status === "Overdue" ? "#d32f2f" : "inherit", fontWeight: inv.status === "Overdue" ? "bold" : "normal" }}
