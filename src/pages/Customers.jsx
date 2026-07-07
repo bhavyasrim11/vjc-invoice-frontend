@@ -297,6 +297,7 @@ const EMPTY_INVOICE_FORM = {
   description: "",
   paidAmount: "",
   referenceNo: "",
+  original_invoice_id: null,
 };
 
 const fileToBase64 = (file) =>
@@ -317,13 +318,31 @@ const [invoiceErrors, setInvoiceErrors] = useState({});
   const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
-  if (open) {
+  if (!open) return;
+
+  if (customer) {
+    const remaining = Number(customer.outstanding || 0);
+
+    setForm({
+      ...EMPTY_INVOICE_FORM,
+      totalAmount: remaining > 0 ? String(remaining) : "",
+      serviceType: customer.service_type || "",
+      original_invoice_id: customer.last_invoice_id || null,
+    });
+
+    setSelectedCustomer(customer);
+
+    setCustomerSearch(
+      `[${customer.customer_id}] ${customer.name}`
+    );
+  } else {
     setForm({ ...EMPTY_INVOICE_FORM });
     setCustomerSearch("");
     setSelectedCustomer(null);
-    setSearchOpen(false);
   }
-}, [open]);
+
+  setSearchOpen(false);
+}, [open, customer]);
 
 useEffect(() => {
   if (!open) return;
@@ -403,6 +422,7 @@ const res = await fetch(`${API}/invoices`, {
           customer_id: activeCustomer.id,
           customer_name: activeCustomer.name,
           customer_email: activeCustomer.email,
+          original_invoice_id: form.original_invoice_id,
           invoice_type: form.invoiceType,
           currency: form.currency,
           invoice_date: form.invoiceDate,
@@ -681,17 +701,28 @@ setSearchOpen(false);
 
             {/* Total Amount — plain text, no type=number, no focus jump */}
             <FieldRow label="Total Amount" required>
-              <TextField
-                fullWidth size="small"
-                placeholder="Total Amount"
-               defaultValue=""
-onChange={(e) => console.log(e.target.value)}
-onBlur={(e) => setForm(prev => ({ ...prev, totalAmount: e.target.value.replace(/[^0-9.]/g, "") }))}
-inputProps={{ inputMode: "decimal" }}
-error={!!invoiceErrors.totalAmount}
-helperText={invoiceErrors.totalAmount}
-              />
-            </FieldRow>
+  <TextField
+    fullWidth
+    size="small"
+    placeholder="Total Amount"
+    value={form.totalAmount}
+    onChange={(e) =>
+      setForm(prev => ({
+        ...prev,
+        totalAmount: e.target.value
+      }))
+    }
+    onBlur={(e) =>
+      setForm(prev => ({
+        ...prev,
+        totalAmount: e.target.value.replace(/[^0-9.]/g, "")
+      }))
+    }
+    inputProps={{ inputMode: "decimal" }}
+    error={!!invoiceErrors.totalAmount}
+    helperText={invoiceErrors.totalAmount}
+  />
+</FieldRow>
 
             <FieldRow label="Discount">
               <TextField
