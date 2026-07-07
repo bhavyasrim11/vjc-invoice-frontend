@@ -59,7 +59,8 @@ function RecentInvoices({ invoices = [] }) {
           <TableHead>
             <TableRow>
               <TableCell><b>Invoice No</b></TableCell>
-              <TableCell><b>Customer Name</b></TableCell>
+              <TableCell><b>Original Invoice</b></TableCell>
+<TableCell><b>Customer Name</b></TableCell>
               <TableCell align="right"><b>Amount</b></TableCell>
               <TableCell align="right"><b>Paid</b></TableCell>
               <TableCell><b>Status</b></TableCell>
@@ -69,7 +70,7 @@ function RecentInvoices({ invoices = [] }) {
           <TableBody>
             {displayed.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 3, color: "text.secondary" }}>
+<TableCell colSpan={6} align="center" sx={{ py: 3, color: "text.secondary" }}>
                   No invoices yet
                 </TableCell>
               </TableRow>
@@ -83,7 +84,8 @@ function RecentInvoices({ invoices = [] }) {
                   {invoice.invoiceNo}
                 </TableCell>
 
-                <TableCell>{invoice.customerName}</TableCell>
+                <TableCell>{invoice.original_invoice_number || "-"}</TableCell>
+<TableCell>{invoice.customerName}</TableCell>
 
                 <TableCell align="right" sx={{ fontWeight: 700 }}>
                   {fmt(invoice.amount)}
