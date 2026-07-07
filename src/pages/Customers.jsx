@@ -72,7 +72,7 @@ function CustomerProfile({ customer, open, onClose, onCreateInvoice, onRecordPay
           <Box>
             <Typography variant="h6" fontWeight={700}>{customer.name}</Typography>
             <Typography variant="body2" color="text.secondary">
-              {customer.customer_id} · {customer.service_type || "—"}
+              {customer.display_customer_id || customer.customer_id} · {customer.service_type || "—"}
             </Typography>
           </Box>
           <Box sx={{ ml: "auto", display: "flex", gap: 1 }}>
