@@ -1049,7 +1049,7 @@ const hasExistingInvoice = (customer) => {
   if (Number(customer.outstanding || 0) > 0) return false;
 
   // Full paid unte — block
-  if (invoicedIds.has(customer.id)) return true;
+// if (invoicedIds.has(customer.id)) return true;
   if (customer.invoice_created) return true;
   if (customer.has_invoice) return true;
   if (Number(customer.invoice_count || 0) > 0) return true;
