@@ -84,7 +84,9 @@ function RecentInvoices({ invoices = [] }) {
                   {invoice.invoiceNo}
                 </TableCell>
 
-                <TableCell>{invoice.original_invoice_number || "-"}</TableCell>
+                <TableCell>
+  {invoice.original_invoice_number ? invoice.original_invoice_number : "Original"}
+</TableCell>
 <TableCell>{invoice.customerName}</TableCell>
 
                 <TableCell align="right" sx={{ fontWeight: 700 }}>
