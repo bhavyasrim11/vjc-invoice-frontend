@@ -24,7 +24,7 @@ const ALL_PERMISSIONS = [
   { key: "expenses",   label: "Expenses",           icon: "💸" },
   { key: "reports",    label: "Reports",            icon: "📊" },
   { key: "services",   label: "Services",           icon: "🛠️" },
-  { key: "leads",      label: "Lead Management",    icon: "🎯" },
+  
 ];
 
 const STEP_LABELS = [

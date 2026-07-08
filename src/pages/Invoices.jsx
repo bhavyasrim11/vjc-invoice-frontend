@@ -519,16 +519,6 @@ await API.patch(`/sales-invoices/${statusChangeInv.id}/status`, {
               </Grid>
 
               <Grid item xs={12} md={4}>
-                <TextField
-                  select fullWidth label="Terms"
-                  value={form.terms}
-                  onChange={(e) => setForm({ ...form, terms: e.target.value, dueDate: dueDateCalc(e.target.value) })}
-                >
-                  {TERMS_OPTIONS.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
-                </TextField>
-              </Grid>
-
-              <Grid item xs={12} md={4}>
                 <TextField fullWidth label="Due Date" type="date"
                   value={form.dueDate}
                   onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
