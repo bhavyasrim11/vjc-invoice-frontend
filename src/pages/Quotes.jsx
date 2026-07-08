@@ -281,7 +281,7 @@ console.log("QUOTE PAYLOAD", payload);
     try {
       await API.put(`/quotes/${quote.id}`, { status: "Invoiced" });
       await fetchAll();
-      alert(`✅ ${quote.quote_number} → Invoice create chesaamu!\nInvoices page lo INV auto add avutundi.`);
+      alert(`✅ ${quote.quote_number} → Invoice created successfully!\nIt will automatically appear on the Invoices page.`);
     } catch {
       setError("Convert to invoice failed.");
     }
@@ -445,16 +445,6 @@ console.log("QUOTE PAYLOAD", payload);
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Current: <strong>{statusChangeQt?.status}</strong>
           </Typography>
-
-          <Box sx={{ bgcolor: "#f0f7ff", p: 1.5, borderRadius: 1, mb: 2 }}>
-            <Typography variant="caption" color="text.secondary">
-              Life Cycle: Draft → Sent → Accepted → Invoiced
-            </Typography>
-            <br />
-            <Typography variant="caption" color="text.secondary">
-              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↘ Rejected
-            </Typography>
-          </Box>
 
           <TextField
             select fullWidth label="Move to Status"
