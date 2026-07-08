@@ -36,7 +36,6 @@ console.log("Logged User =", user);
     : [
         { name: "Dashboard", icon: <DashboardIcon /> },
         { name: "Customers", icon: <PeopleIcon /> },
-        { name: "Services", icon: <InventoryIcon /> },
         { name: "Quotes", icon: <RequestQuoteIcon /> },
         { name: "Invoices", icon: <ReceiptLongIcon /> },
         { name: "Payments Received", icon: <PaymentsIcon /> },

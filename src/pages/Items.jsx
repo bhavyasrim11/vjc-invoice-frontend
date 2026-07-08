@@ -198,45 +198,12 @@ const res = await axios.delete(`${API_BASE}/${id}`, authHeader());
         onChange={(e) => setFormData({ ...formData, serviceName: e.target.value })}
       />
       <TextField
-        select fullWidth margin="normal" label="Category *"
+        fullWidth margin="normal" label="Category *"
+        placeholder="e.g. Canada PR Visa"
         value={formData.category}
         error={!!errors.category} helperText={errors.category}
         onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-      >
-       {[
-  "Canada PR Visa",
-  "Canada Tourist Visa",
-  "Canada Visit Visa",
-  "Canada Study Visa",
-  "Canada Spouse Visa",
-  "Canada Super Visa",
-  "Germany Visit Visa",
-  "Germany Tourist Visa",
-  "Germany Study Visa",
-  "Germany Family Reunion Visa",
-  "Germany Opportunity Card",
-  "Australia PR Visa",
-  "Australia Visit/Tourist Visa",
-  "Australia Study Visa",
-  "Australia Spouse Visa",
-  "Newzealand Visit Visa",
-  "Newzealand Study Visa",
-  "US Study Visa",
-  "US H1B Visa",
-  "US B1/B2 Visa",
-  "UK Study Visa",
-  "UK Youth Mobility Program",
-  "UK Visit/Tourist Visa",
-  "Austria Job Seeker Visa",
-  "Portugal Job Seeker Visa",
-  "Job Search Service",
-  "South Africa Critical Skilled Visa"
-].map((service) => (
-  <MenuItem key={service} value={service}>
-    {service}
-  </MenuItem>
-))}
-      </TextField>
+      />
 
       <TextField
         fullWidth margin="normal" label="Country *"
