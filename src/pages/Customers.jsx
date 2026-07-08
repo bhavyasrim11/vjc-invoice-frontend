@@ -20,18 +20,7 @@ const STATES = [
   "Punjab","Haryana","Madhya Pradesh","Bihar","Odisha","Others",
 ];
 
-const VJC_SERVICES = [
-  "Canada PR Visa","Canada Tourist Visa","Canada Visit Visa",
-  "Canada Study Visa","Canada Spouse Visa","Canada Super Visa",
-  "Germany Visit Visa","Germany Tourist Visa","Germany Study Visa",
-  "Germany Family Reunion Visa","Germany Opportunity Card",
-  "Australia PR Visa","Australia Visit/Tourist Visa","Australia Study Visa",
-  "Australia Spouse Visa","New Zealand Visit Visa","New Zealand Study Visa",
-  "US Study Visa","US H1B Visa","US B1/B2 Visa",
-  "UK Study Visa","UK Youth Mobility Program","UK Visit/Tourist Visa",
-  "Austria Job Seeker Visa","Portugal Job Seeker Visa",
-  "Job Search Service","South Africa Critical Skilled Visa","Other",
-];
+
 
 const CURRENCIES = ["INR", "USD", "EUR", "GBP", "AUD", "CAD"];
 const INVOICE_TYPES = ["Including Tax", "Excluding Tax"];
@@ -309,9 +298,11 @@ const fileToBase64 = (file) =>
   });
 
 function InvoiceDialog({ open, onClose, customer, onSuccess }) {
-  const [form, setForm] = useState(EMPTY_INVOICE_FORM);
+const [form, setForm] = useState(EMPTY_INVOICE_FORM);
 const [loading, setLoading] = useState(false);
 const [invoiceErrors, setInvoiceErrors] = useState({});
+
+const [services, setServices] = useState([]);
   const [customerSearch, setCustomerSearch] = useState("");
   const [customerOptions, setCustomerOptions] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -361,6 +352,26 @@ setCustomerOptions(d.customers || []);
 })
     .catch((err) => {
       console.log("CUSTOMER API ERROR =", err);
+    });
+}, [open]);
+useEffect(() => {
+  if (!open) return;
+
+  const token = localStorage.getItem("vjc_invoice_auth");
+
+  fetch(`${API}/items`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+    .then((res) => res.json())
+    .then((data) => {
+      if (data.success) {
+        setServices(data.items || []);
+      }
+    })
+    .catch((err) => {
+      console.log("Services Load Error", err);
     });
 }, [open]);
 
@@ -858,8 +869,18 @@ onBlur={(e) => setForm(prev => ({ ...prev, discount: e.target.value.replace(/[^0
                 helperText={invoiceErrors.serviceType}
                 SelectProps={{ displayEmpty: true }}
               >
-                <MenuItem value="" disabled><em>Select Option</em></MenuItem>
-                {VJC_SERVICES.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+                <MenuItem value="" disabled>
+  <em>Select Option</em>
+</MenuItem>
+
+{services.map((service) => (
+  <MenuItem
+  key={service.id}
+  value={service.service_name}
+>
+  {service.service_name}
+</MenuItem>
+))}
               </TextField>
             </FieldRow>
 
