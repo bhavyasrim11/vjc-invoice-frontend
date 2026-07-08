@@ -4,7 +4,7 @@ import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Paper, Dialog, DialogTitle, DialogContent, DialogActions,
   MenuItem, Chip, Avatar, Tabs, Tab, Divider,
-  Stack, CircularProgress, Alert, IconButton, InputAdornment
+  Stack, CircularProgress, Alert, IconButton, InputAdornment, Pagination
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -1032,6 +1032,8 @@ function Customers() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
   const [filterType, setFilterType] = useState("All");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
 
   const [addOpen, setAddOpen] = useState(false);
@@ -1085,12 +1087,14 @@ const hasExistingInvoice = (customer) => {
       if (search) params.append("search", search);
       if (filterStatus !== "All") params.append("status", filterStatus);
       if (filterType !== "All") params.append("type", filterType);
+      params.append("page", page);
+      params.append("limit", 25);
       const token = localStorage.getItem("vjc_invoice_auth");
 const res = await fetch(`${API}/customers?${params}`, {
   headers: { Authorization: `Bearer ${token}` },
 });
       const data = await res.json();
-      if (data.success) { setCustomers(data.customers); setStats(data.stats); }
+      if (data.success) { setCustomers(data.customers); setStats(data.stats); setTotalPages(data.totalPages || 1); }
     } catch (err) {
       setError("Unable to connect to backend server!");
     } finally {
@@ -1100,7 +1104,11 @@ const res = await fetch(`${API}/customers?${params}`, {
 
   useEffect(() => {
      fetchCustomers();
-     }, [search, filterStatus, filterType]);
+     }, [search, filterStatus, filterType, page]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, filterStatus, filterType]);
     
   const handleAdd = async (form) => {
     try {
@@ -1357,7 +1365,16 @@ const displayCustomers = sortedCustomers.filter((customer) => {
             </TableBody>
           </Table>
         </TableContainer>
-        
+
+        <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
+          <Pagination
+            count={totalPages}
+            page={page}
+            onChange={(e, value) => setPage(value)}
+            color="primary"
+          />
+        </Box>
+
       </>
       )}
 
