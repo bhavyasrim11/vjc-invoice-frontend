@@ -42,6 +42,20 @@ console.log("Logged User =", user);
         { name: "Payments Received", icon: <PaymentsIcon /> },
         { name: "Reports", icon: <AssessmentIcon /> },
       ];
+      const nameToPermKey = {
+    "Dashboard": "dashboard",
+    "Customers": "customers",
+    "Services": "services",
+    "Quotes": "quotes",
+    "Invoices": "invoices",
+    "Payments Received": "payments",
+    "Reports": "reports",
+  };
+
+  const finalMenuItems =
+    user?.role === "chairman"
+      ? menuItems
+      : menuItems.filter((item) => user?.permissions?.[nameToPermKey[item.name]]);
 
   const handleLogout = () => {
     localStorage.removeItem("vjc_invoice_auth");
@@ -87,7 +101,7 @@ console.log("Logged User =", user);
       </div>
 
       <div style={{ flex: 1 }}>
-        {menuItems.map((item, index) => (
+        {finalMenuItems.map((item, index) => (
           <div
             key={item.name}
             onClick={() => setPage(item.name)}
