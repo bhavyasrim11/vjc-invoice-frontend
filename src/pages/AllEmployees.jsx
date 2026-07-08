@@ -495,13 +495,17 @@ function AllEmployees() {
           </Typography>
         </Box>
       ) : (
-        <Grid container spacing={2.5}>
+        <Box sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", md: "1fr 1fr", lg: "1fr 1fr 1fr" },
+          gap: "20px",
+        }}>
           {displayed.map((emp) => (
-           <Grid item xs={12} md={6} lg={4} key={emp.id} sx={{ minWidth: 0 }}>
+            <Box key={emp.id} sx={{ minWidth: 0 }}>
               <EmployeeCard emp={emp} onDeactivate={deactivate} onRefresh={fetchEmployees} />
-            </Grid>
+            </Box>
           ))}
-        </Grid>
+        </Box>
       )}
     </Box>
   );
