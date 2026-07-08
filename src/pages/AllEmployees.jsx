@@ -497,7 +497,7 @@ function AllEmployees() {
       ) : (
         <Grid container spacing={2.5}>
           {displayed.map((emp) => (
-            <Grid item xs={12} md={6} lg={4} key={emp.id}>
+            <Grid item xs={12} md={6} lg={4} key={emp.id} sx={{ minWidth: 0 }}>
               <EmployeeCard emp={emp} onDeactivate={deactivate} onRefresh={fetchEmployees} />
             </Grid>
           ))}
