@@ -153,7 +153,7 @@ function CustomerFormDialog({ open, onClose, onSave, initial, title }) {
   if (!form.service_type) newErrors.service_type = "Service Type is required";
   if (!form.phone?.trim()) newErrors.phone = "Phone is required";
   if (!form.email?.trim()) newErrors.email = "Email is required";
-  if (!form.gstin?.trim()) newErrors.gstin = "GST Number is required";
+  if (form.type === "Business" && !form.gstin?.trim()) newErrors.gstin = "GST Number is required";
   if (!form.address?.trim()) newErrors.address = "Address is required";
   if (!form.city?.trim()) newErrors.city = "City is required";
   if (!form.state?.trim()) newErrors.state = "State is required";
@@ -214,7 +214,7 @@ function CustomerFormDialog({ open, onClose, onSave, initial, title }) {
 <TextField
   fullWidth
   margin="normal"
-  label="GST Number *"
+  label={form.type === "Business" ? "GST Number *" : "GST Number"}
   value={form.gstin}
   onChange={set("gstin")}
   error={!!errors.gstin}
