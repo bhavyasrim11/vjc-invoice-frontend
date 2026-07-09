@@ -25,6 +25,7 @@ import {
   CircularProgress,
   Snackbar,
   Alert,
+  Pagination,
 } from "@mui/material";
 
 const API_BASE = "https://vjc-invoice-backend.vercel.app/api/items";
@@ -48,9 +49,11 @@ const calcGST = (price, gstPercent) => {
 function Items() {
   const [items, setItems] = useState([]);
   const [stats, setStats] = useState({ total_items: 0, active_items: 0, total_revenue: 0 });
-  const [loading, setLoading] = useState(false);
+const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [errors, setErrors] = useState({});
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Snackbar
   const [snack, setSnack] = useState({ open: false, message: "", severity: "success" });
@@ -82,12 +85,13 @@ const authHeader = () => ({ headers: { Authorization: `Bearer ${localStorage.get
     setLoading(true);
     try {
 const res = await axios.get(API_BASE, {
-  params: { search: search || undefined },
+  params: { search: search || undefined, page, limit: 25 },
   ...authHeader()
 });
       if (res.data.success) {
         setItems(res.data.items || []);
         setStats(res.data.stats || {});
+        setTotalPages(res.data.totalPages || 1);
       }
     } catch (err) {
       showSnack("Failed to load services!", "error");
@@ -100,6 +104,10 @@ const res = await axios.get(API_BASE, {
   useEffect(() => {
     const timer = setTimeout(() => fetchItems(), 300);
     return () => clearTimeout(timer);
+  }, [search, page]);
+
+  useEffect(() => {
+    setPage(1);
   }, [search]);
 
   // ✅ Validation
@@ -392,7 +400,18 @@ const res = await axios.delete(`${API_BASE}/${id}`, authHeader());
               )}
             </TableBody>
           </Table>
-        </TableContainer>
+       </TableContainer>
+      )}
+
+      {!loading && (
+        <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
+          <Pagination
+            count={totalPages}
+            page={page}
+            onChange={(e, value) => setPage(value)}
+            color="primary"
+          />
+        </Box>
       )}
 
       {/* ✅ ADD Dialog */}

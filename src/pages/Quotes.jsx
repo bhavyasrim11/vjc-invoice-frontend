@@ -4,7 +4,7 @@ import {
   Box, Typography, Grid, Card, CardContent, Button, TextField,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Paper, Dialog, DialogTitle, DialogContent, DialogActions,
-  MenuItem, Chip, Divider, IconButton, CircularProgress, Alert,
+  MenuItem, Chip, Divider, IconButton, CircularProgress, Alert, Pagination,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
@@ -82,6 +82,8 @@ function Quotes() {
   const [selected, setSelected] = useState(null);
   const [search, setSearch]     = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   
 
   // ── Status change dialog ──
@@ -95,18 +97,19 @@ function Quotes() {
   // ── Fetch all data on mount ──
   useEffect(() => {
     fetchAll();
-  }, []);
+  }, [page]);
 
   const fetchAll = async () => {
     setLoading(true);
     setError("");
     try {
       const [qRes, cRes, iRes] = await Promise.all([
-        API.get("/quotes"),
+        API.get("/quotes", { params: { page, limit: 25 } }),
         API.get("/customers"),
         API.get("/items"),
       ]);
       setQuotes(qRes.data.data || []);
+      setTotalPages(qRes.data.totalPages || 1);
       setCustomers(cRes.data.customers || []);
       setItemsList(iRes.data.items || []);
     } catch (err) {
@@ -436,7 +439,16 @@ console.log("QUOTE PAYLOAD", payload);
             ))}
           </TableBody>
         </Table>
-      </TableContainer>
+</TableContainer>
+
+      <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
+        <Pagination
+          count={totalPages}
+          page={page}
+          onChange={(e, value) => setPage(value)}
+          color="primary"
+        />
+      </Box>
 
       {/* ✅ STATUS CHANGE DIALOG */}
       <Dialog open={statusDialogOpen} onClose={() => setStatusDialogOpen(false)} maxWidth="xs" fullWidth>

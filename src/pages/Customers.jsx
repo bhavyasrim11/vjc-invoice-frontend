@@ -1160,6 +1160,33 @@ const res = await fetch(`${API}/customers/${selected.id}`, {
     persistInvoicedIds(next);
     fetchCustomers();
   };
+  const handleDownloadPdf = async (invoiceId, customerName) => {
+    if (!invoiceId) {
+      alert("❌ Invoice ID not found for this customer");
+      return;
+    }
+    try {
+      const token = localStorage.getItem("vjc_invoice_auth");
+      const res = await fetch(`${API}/invoices/${invoiceId}/download-pdf`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        alert("❌ Failed to download PDF");
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Invoice-${customerName || "invoice"}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert("❌ Failed to download PDF");
+    }
+  };
   const sortedCustomers = [...customers];
 
 const displayCustomers = sortedCustomers.filter((customer) => {
@@ -1347,6 +1374,15 @@ const displayCustomers = sortedCustomers.filter((customer) => {
     ? "Remaining Invoice"
     : "Invoice"}
 </Button>
+                      {customer.invoice_status === "Approved" && (
+                        <Button
+                          size="small"
+                          color="primary"
+                          onClick={() => handleDownloadPdf(customer.last_invoice_id, customer.name)}
+                        >
+                          Download PDF
+                        </Button>
+                      )}
                     <Chip
   label={customer.invoice_status || "Pending"}
   color={
