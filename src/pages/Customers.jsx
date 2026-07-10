@@ -283,12 +283,12 @@ const EMPTY_INVOICE_FORM = {
   dueDate: "",
   serviceType: "",
   stateBy: "",
+  taxType: "AUTO",          
   description: "",
   paidAmount: "",
   referenceNo: "",
   original_invoice_id: null,
 };
-
 const fileToBase64 = (file) =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -377,8 +377,12 @@ useEffect(() => {
 
   const activeCustomer = selectedCustomer || customer;
 
-  const taxPercent = 18;
-  const totalAmountNum = Number(form.totalAmount || 0);
+const taxType =
+  form.taxType === "AUTO"
+    ? (activeCustomer?.state === form.stateBy ? "CGST_SGST" : "IGST")
+    : form.taxType;
+
+const taxPercent = 18;  const totalAmountNum = Number(form.totalAmount || 0);
   const discountNum = Number(form.discount || 0);
   const paidAmountNum = Number(form.paidAmount || 0);
   const invoiceAmount = Math.max(totalAmountNum - discountNum, 0);
@@ -444,6 +448,7 @@ const res = await fetch(`${API}/invoices`, {
           discount: discountNum,
           subtotal: invoiceAmount,
           tax_percent: taxPercent,
+          tax_type: taxType, 
           tax_amount: taxAmount,
           grand_total: grandTotal,
           paid_amount: paidAmountNum,
@@ -755,6 +760,19 @@ onBlur={(e) => setForm(prev => ({ ...prev, discount: e.target.value.replace(/[^0
                 sx={readOnlyStyle}
               />
             </FieldRow>
+            <FieldRow label="Tax Type">
+  <TextField
+    select
+    fullWidth
+    size="small"
+    value={form.taxType}
+    onChange={set("taxType")}
+  >
+    <MenuItem value="AUTO">Auto</MenuItem>
+    <MenuItem value="CGST_SGST">CGST + SGST (18%)</MenuItem>
+    <MenuItem value="IGST">IGST (18%)</MenuItem>
+  </TextField>
+</FieldRow>
 
             <FieldRow label="TAX (%)">
               <TextField
