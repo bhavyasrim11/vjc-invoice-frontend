@@ -20,7 +20,7 @@ const Sidebar = ({ setPage, activePage }) => {
   );
 console.log("Logged User =", user);
   const menuItems =
-  user?.role === "chairman"
+  (user?.role === "chairman" || user?.role === "mis-executive")
     ? [
         { name: "Dashboard", icon: <DashboardIcon /> },
         { name: "Customers", icon: <PeopleIcon /> },
@@ -52,8 +52,8 @@ console.log("Logged User =", user);
     "Reports": "reports",
   };
 
-  const finalMenuItems =
-    user?.role === "chairman"
+const finalMenuItems =
+    (user?.role === "chairman" || user?.role === "mis-executive")
       ? menuItems
       : menuItems.filter((item) => user?.permissions?.[nameToPermKey[item.name]]);
 
